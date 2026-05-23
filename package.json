@@ -1,0 +1,36 @@
+{
+  "name": "ssrf-guard",
+  "version": "0.1.0",
+  "description": "SSRF protection: validate URLs, pin resolved IPs to the socket, eliminating the DNS-rebind window",
+  "license": "MIT",
+  "files": [
+    "src"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/core/index.mts"
+    },
+    "./node": {
+      "import": "./src/node/index.mts"
+    }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "undici": "^8.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@vitest/coverage-v8": "^4.1.7",
+    "oxfmt": "^0.51.0",
+    "oxlint": "^1.66.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

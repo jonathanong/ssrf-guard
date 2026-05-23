@@ -1,0 +1,5 @@
+{
+  "rules": {
+    "max-lines": ["error", { "max": 200 }]
+  }
+}

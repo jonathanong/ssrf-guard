@@ -1,0 +1,13 @@
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file: "package.json"
+      - any-glob-to-any-file: "pnpm-lock.yaml"
+      - any-glob-to-any-file: ".github/dependabot.yml"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: ".github/workflows/**"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file: "src/**/*.test.mts"
