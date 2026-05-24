@@ -1,4 +1,4 @@
-import { isPrivateIp } from "./is-private-ip.mts";
+import { isPrivateIp } from "./is-private-ip.mjs";
 
 export const DNS_NULL_ROUTE_CODE = "DNS_NULL_ROUTE";
 

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { safeFetch } from "./safe-fetch.mts";
-import { UnsafeUrlError } from "./errors.mts";
+import { safeFetch } from "./safe-fetch.mjs";
+import { UnsafeUrlError } from "./errors.mjs";
 
-vi.mock("./validate-url.mts", () => ({
+vi.mock("./validate-url.mjs", () => ({
   validateUrl: vi.fn(),
 }));
 
@@ -14,7 +14,7 @@ vi.mock("undici", async (importOriginal) => {
   };
 });
 
-const { validateUrl } = await import("./validate-url.mts");
+const { validateUrl } = await import("./validate-url.mjs");
 const { fetch: undiciFetch } = await import("undici");
 
 const PUBLIC_ADDRESSES = [{ address: "93.184.216.34", family: 4 as const }];

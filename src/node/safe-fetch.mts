@@ -1,9 +1,9 @@
 /* oxlint-disable no-await-in-loop -- redirects must validate and fetch each hop sequentially */
 import { fetch as undiciFetch, type Dispatcher, type Response as UndiciResponse } from "undici";
-import { validateUrl } from "./validate-url.mts";
-import { createPinnedDispatcher } from "./pinned-dispatcher.mts";
-import { UnsafeUrlError } from "./errors.mts";
-import type { BlockedHostnamePolicy, ResolvedSafeAddress } from "../core/index.mts";
+import { validateUrl } from "./validate-url.mjs";
+import { createPinnedDispatcher } from "./pinned-dispatcher.mjs";
+import { UnsafeUrlError } from "./errors.mjs";
+import type { BlockedHostnamePolicy, ResolvedSafeAddress } from "../core/index.mjs";
 
 export interface SafeFetchOptions extends Omit<RequestInit, "signal"> {
   blockedHostnames?: BlockedHostnamePolicy;

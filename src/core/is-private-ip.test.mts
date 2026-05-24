@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isPrivateIp } from "./is-private-ip.mts";
+import { isPrivateIp } from "./is-private-ip.mjs";
 
 describe("isPrivateIp", () => {
   describe("standard private IPv4 ranges", () => {

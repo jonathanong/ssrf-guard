@@ -1,6 +1,6 @@
 {
   "name": "ssrf-guard",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "SSRF protection: validate URLs, pin resolved IPs to the socket, eliminating the DNS-rebind window",
   "license": "MIT",
   "repository": {
@@ -8,18 +8,23 @@
     "url": "https://github.com/jonathanong/ssrf-guard.git"
   },
   "files": [
-    "src"
+    "src",
+    "dist"
   ],
   "type": "module",
   "exports": {
     ".": {
-      "import": "./src/core/index.mts"
+      "types": "./dist/core/index.d.mts",
+      "import": "./dist/core/index.mjs"
     },
     "./node": {
-      "import": "./src/node/index.mts"
+      "types": "./dist/node/index.d.mts",
+      "import": "./dist/node/index.mjs"
     }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "pnpm run build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
