@@ -25,13 +25,45 @@ describe("isPrivateIp", () => {
       expect(isPrivateIp("172.32.0.0")).toBe(false);
     });
 
-    it("returns true for 0.0.0.0", () => {
+    it("returns true for 0.x.x.x addresses", () => {
       expect(isPrivateIp("0.0.0.0")).toBe(true);
+      expect(isPrivateIp("0.0.0.1")).toBe(true);
+      expect(isPrivateIp("0.255.255.255")).toBe(true);
     });
 
     it("returns true for 169.254.x.x link-local addresses", () => {
       expect(isPrivateIp("169.254.0.0")).toBe(true);
       expect(isPrivateIp("169.254.169.254")).toBe(true);
+    });
+
+    it("returns true for 100.64.0.0/10 CGNAT addresses", () => {
+      expect(isPrivateIp("100.64.0.1")).toBe(true);
+      expect(isPrivateIp("100.100.100.200")).toBe(true); // Alibaba Cloud Metadata
+      expect(isPrivateIp("100.127.255.255")).toBe(true);
+      expect(isPrivateIp("100.63.255.255")).toBe(false);
+      expect(isPrivateIp("100.128.0.0")).toBe(false);
+    });
+
+    it("returns true for IETF protocol assignments and test-net addresses", () => {
+      expect(isPrivateIp("192.0.0.170")).toBe(true);
+      expect(isPrivateIp("192.0.2.1")).toBe(true);
+      expect(isPrivateIp("198.51.100.1")).toBe(true);
+      expect(isPrivateIp("203.0.113.1")).toBe(true);
+    });
+
+    it("returns true for benchmarking addresses", () => {
+      expect(isPrivateIp("198.18.0.1")).toBe(true);
+      expect(isPrivateIp("198.19.255.255")).toBe(true);
+    });
+
+    it("returns true for multicast addresses", () => {
+      expect(isPrivateIp("224.0.0.1")).toBe(true);
+      expect(isPrivateIp("239.255.255.255")).toBe(true);
+    });
+
+    it("returns true for reserved/broadcast addresses", () => {
+      expect(isPrivateIp("240.0.0.0")).toBe(true);
+      expect(isPrivateIp("255.255.255.255")).toBe(true);
     });
 
     it("returns false for public IPv4 addresses", () => {
@@ -91,6 +123,12 @@ describe("isPrivateIp", () => {
       expect(isPrivateIp("fe90::1")).toBe(true);
       expect(isPrivateIp("fea0::1")).toBe(true);
       expect(isPrivateIp("feb0::1")).toBe(true);
+    });
+
+    it("returns true for multicast ff00::/8 range", () => {
+      expect(isPrivateIp("ff02::1")).toBe(true);
+      expect(isPrivateIp("ff00::")).toBe(true);
+      expect(isPrivateIp("ffff::ffff")).toBe(true);
     });
 
     it("returns false for public IPv6 addresses", () => {
