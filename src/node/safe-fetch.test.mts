@@ -1,7 +1,7 @@
 import http from "node:http";
 import { afterAll, beforeAll, describe, it, expect } from "vitest";
-import { safeFetch } from "./safe-fetch.mts";
-import { UnsafeUrlError } from "./errors.mts";
+import { safeFetch } from "./safe-fetch.mjs";
+import { UnsafeUrlError } from "./errors.mjs";
 
 // Local test server for integration tests
 let server: http.Server;

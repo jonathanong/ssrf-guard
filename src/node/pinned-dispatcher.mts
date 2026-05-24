@@ -1,6 +1,6 @@
 import { Agent } from "undici";
 import type { LookupFunction } from "node:net";
-import type { ResolvedSafeAddress } from "../core/index.mts";
+import type { ResolvedSafeAddress } from "../core/index.mjs";
 
 export function createPinnedLookup(
   resolvedAddresses: [ResolvedSafeAddress, ...ResolvedSafeAddress[]],

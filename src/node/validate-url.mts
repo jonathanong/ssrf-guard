@@ -8,8 +8,8 @@ import {
   validateResolvedAddresses,
   type BlockedHostnamePolicy,
   type ResolvedSafeAddress,
-} from "../core/index.mts";
-import { UnsafeUrlError } from "./errors.mts";
+} from "../core/index.mjs";
+import { UnsafeUrlError } from "./errors.mjs";
 
 export type { BlockedHostnamePolicy, ResolvedSafeAddress };
 

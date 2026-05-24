@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { validateUrl } from "./validate-url.mts";
-import { UnsafeUrlError } from "./errors.mts";
+import { validateUrl } from "./validate-url.mjs";
+import { UnsafeUrlError } from "./errors.mjs";
 
 describe("validateUrl", () => {
   it("resolves a public URL and returns addresses", async () => {

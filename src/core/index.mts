@@ -1,2 +1,2 @@
-export * from "./is-private-ip.mts";
-export * from "./url-safety.mts";
+export * from "./is-private-ip.mjs";
+export * from "./url-safety.mjs";

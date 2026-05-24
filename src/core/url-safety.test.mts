@@ -6,7 +6,7 @@ import {
   UnsafeResolvedAddressError,
   DNS_NULL_ROUTE_CODE,
   type BlockedHostnamePolicy,
-} from "./url-safety.mts";
+} from "./url-safety.mjs";
 
 const POLICY: BlockedHostnamePolicy = {
   exact: ["localhost"],

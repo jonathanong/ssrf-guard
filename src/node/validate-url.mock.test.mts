@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { validateUrl } from "./validate-url.mts";
-import { UnsafeUrlError } from "./errors.mts";
-import { DNS_NULL_ROUTE_CODE } from "../core/index.mts";
+import { validateUrl } from "./validate-url.mjs";
+import { UnsafeUrlError } from "./errors.mjs";
+import { DNS_NULL_ROUTE_CODE } from "../core/index.mjs";
 
 vi.mock("node:dns", () => ({
   default: {

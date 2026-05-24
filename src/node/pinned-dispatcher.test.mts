@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createPinnedLookup, createPinnedDispatcher } from "./pinned-dispatcher.mts";
+import { createPinnedLookup, createPinnedDispatcher } from "./pinned-dispatcher.mjs";
 import { Agent } from "undici";
 
 describe("createPinnedLookup", () => {
