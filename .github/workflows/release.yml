@@ -18,7 +18,7 @@ on:
           - prerelease
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 concurrency:
@@ -32,14 +32,9 @@ jobs:
       - name: Check required secrets
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ -z "$RELEASE_TOKEN" ]; then
             echo "::error::RELEASE_TOKEN secret is not set. This workflow requires a PAT whose owner is in the main branch ruleset bypass list." >&2
-            exit 1
-          fi
-          if [ -z "$NPM_TOKEN" ]; then
-            echo "::error::NPM_TOKEN secret is not set. This workflow requires an npm publish token." >&2
             exit 1
           fi
 
@@ -80,8 +75,6 @@ jobs:
       - run: git push origin HEAD:main --follow-tags
 
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub release
         env:
