@@ -101,10 +101,10 @@ describe("safeFetch (mocked)", () => {
       headers: {
         authorization: "secret",
         cookie: "session=1",
-        "cookie2": "session=2",
+        cookie2: "session=2",
         "proxy-authorization": "proxy-secret",
-        "x-custom-header": "custom"
-      }
+        "x-custom-header": "custom",
+      },
     });
 
     expect(vi.mocked(undiciFetch)).toHaveBeenCalledTimes(2);
@@ -132,8 +132,8 @@ describe("safeFetch (mocked)", () => {
     await safeFetch("https://example.com/", {
       headers: {
         authorization: "secret",
-        cookie: "session=1"
-      }
+        cookie: "session=1",
+      },
     });
 
     expect(vi.mocked(undiciFetch)).toHaveBeenCalledTimes(2);
