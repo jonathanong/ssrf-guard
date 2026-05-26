@@ -89,6 +89,16 @@ export async function safeFetch(
       response.body?.cancel().catch(() => {});
       const nextUrl = getRedirectUrl(response, currentUrl.href);
       closeDispatcher(dispatcher);
+
+      if (nextUrl.origin !== currentUrl.origin && fetchInit.headers) {
+        const headers = new Headers(fetchInit.headers);
+        headers.delete("authorization");
+        headers.delete("cookie");
+        headers.delete("cookie2");
+        headers.delete("proxy-authorization");
+        fetchInit.headers = headers;
+      }
+
       currentUrl = nextUrl;
     } catch (error) {
       closeDispatcher(dispatcher);

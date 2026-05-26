@@ -89,4 +89,58 @@ describe("safeFetch (mocked)", () => {
     await safeFetch("https://example.com/");
     expect(vi.mocked(undiciFetch)).toHaveBeenCalled();
   });
+
+  it("drops sensitive headers on cross-origin redirects", async () => {
+    const redirect = makeResponse(302, { location: "https://other.example.com/final" });
+    const final = makeResponse(200);
+    vi.mocked(undiciFetch)
+      .mockResolvedValueOnce(redirect as never)
+      .mockResolvedValueOnce(final as never);
+
+    await safeFetch("https://example.com/", {
+      headers: {
+        authorization: "secret",
+        cookie: "session=1",
+        "cookie2": "session=2",
+        "proxy-authorization": "proxy-secret",
+        "x-custom-header": "custom"
+      }
+    });
+
+    expect(vi.mocked(undiciFetch)).toHaveBeenCalledTimes(2);
+
+    const firstCallArgs = vi.mocked(undiciFetch).mock.calls[0] as unknown as [string, RequestInit];
+    expect(firstCallArgs[1].headers).toHaveProperty("authorization", "secret");
+
+    const secondCallArgs = vi.mocked(undiciFetch).mock.calls[1] as unknown as [string, RequestInit];
+    const secondHeaders = secondCallArgs[1].headers as Headers;
+    expect(secondHeaders).toBeInstanceOf(Headers);
+    expect(secondHeaders.get("authorization")).toBeNull();
+    expect(secondHeaders.get("cookie")).toBeNull();
+    expect(secondHeaders.get("cookie2")).toBeNull();
+    expect(secondHeaders.get("proxy-authorization")).toBeNull();
+    expect(secondHeaders.get("x-custom-header")).toBe("custom");
+  });
+
+  it("retains sensitive headers on same-origin redirects", async () => {
+    const redirect = makeResponse(302, { location: "https://example.com/final" });
+    const final = makeResponse(200);
+    vi.mocked(undiciFetch)
+      .mockResolvedValueOnce(redirect as never)
+      .mockResolvedValueOnce(final as never);
+
+    await safeFetch("https://example.com/", {
+      headers: {
+        authorization: "secret",
+        cookie: "session=1"
+      }
+    });
+
+    expect(vi.mocked(undiciFetch)).toHaveBeenCalledTimes(2);
+
+    const secondCallArgs = vi.mocked(undiciFetch).mock.calls[1] as unknown as [string, RequestInit];
+    // Headers object shouldn't have been created/modified
+    expect(secondCallArgs[1].headers).toHaveProperty("authorization", "secret");
+    expect(secondCallArgs[1].headers).toHaveProperty("cookie", "session=1");
+  });
 });
