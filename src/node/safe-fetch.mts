@@ -53,10 +53,13 @@ export async function safeFetch(
     blockedHostnames,
     maxRedirects = DEFAULT_MAX_REDIRECTS,
     signal,
-    ...fetchInit
+    ...initialFetchInit
   } = options ?? {};
-  let currentFetchInit = fetchInit;
   let currentUrl = new URL(initialUrl);
+  let currentFetchInit = initialFetchInit as Omit<
+    SafeFetchOptions,
+    "blockedHostnames" | "maxRedirects" | "signal"
+  >;
 
   for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
     if (currentUrl.protocol !== "http:" && currentUrl.protocol !== "https:") {
@@ -98,8 +101,26 @@ export async function safeFetch(
       response.body?.cancel().catch(() => {});
       const nextUrl = getRedirectUrl(response, currentUrl.href);
 
-      // Strip sensitive headers on cross-origin redirect
-      if (nextUrl.origin !== currentUrl.origin && currentFetchInit.headers) {
+      closeDispatcher(dispatcher);
+
+      const requestMethod = currentFetchInit.method?.toUpperCase() ?? "GET";
+
+      if (
+        (response.status === 303 && requestMethod !== "GET" && requestMethod !== "HEAD") ||
+        ((response.status === 301 || response.status === 302) && requestMethod === "POST")
+      ) {
+        currentFetchInit = { ...currentFetchInit, method: "GET" };
+        delete currentFetchInit.body;
+
+        if (currentFetchInit.headers) {
+          const headers = new Headers(currentFetchInit.headers);
+          headers.delete("content-type");
+          headers.delete("content-length");
+          currentFetchInit = { ...currentFetchInit, headers: headers as HeadersInit };
+        }
+      }
+
+      if (currentUrl.origin !== nextUrl.origin && currentFetchInit.headers) {
         const headers = new Headers(currentFetchInit.headers);
         for (const sensitiveHeader of SENSITIVE_HEADERS) {
           headers.delete(sensitiveHeader);
@@ -107,7 +128,6 @@ export async function safeFetch(
         currentFetchInit = { ...currentFetchInit, headers: headers as HeadersInit };
       }
 
-      closeDispatcher(dispatcher);
       currentUrl = nextUrl;
     } catch (error) {
       closeDispatcher(dispatcher);

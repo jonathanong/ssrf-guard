@@ -89,4 +89,86 @@ describe("safeFetch (mocked)", () => {
     await safeFetch("https://example.com/");
     expect(vi.mocked(undiciFetch)).toHaveBeenCalled();
   });
+
+  it("strips sensitive headers on cross-origin redirects", async () => {
+    const redirect = makeResponse(302, { location: "https://evil.com/final" });
+    const final = makeResponse(200);
+    vi.mocked(undiciFetch)
+      .mockResolvedValueOnce(redirect as never)
+      .mockResolvedValueOnce(final as never);
+
+    await safeFetch("https://example.com/", {
+      headers: {
+        authorization: "secret",
+        cookie: "session",
+        "proxy-authorization": "proxy-secret",
+        "content-type": "application/json",
+      },
+    });
+
+    expect(vi.mocked(undiciFetch)).toHaveBeenCalledTimes(2);
+
+    // Initial request has all headers
+    const firstCallInit = vi.mocked(undiciFetch).mock.calls[0][1];
+    expect(firstCallInit?.headers).toMatchObject({
+      authorization: "secret",
+      cookie: "session",
+      "proxy-authorization": "proxy-secret",
+      "content-type": "application/json",
+    });
+
+    // Redirected request has sensitive headers stripped
+    const secondCallInit = vi.mocked(undiciFetch).mock.calls[1][1];
+    const secondHeaders = new Headers(secondCallInit?.headers as HeadersInit);
+    expect(secondHeaders.has("authorization")).toBe(false);
+    expect(secondHeaders.has("cookie")).toBe(false);
+    expect(secondHeaders.has("proxy-authorization")).toBe(false);
+    expect(secondHeaders.get("content-type")).toBe("application/json");
+  });
+
+  it("changes method to GET and drops body on 303 redirect", async () => {
+    const redirect = makeResponse(303, { location: "https://example.com/final" });
+    const final = makeResponse(200);
+    vi.mocked(undiciFetch)
+      .mockResolvedValueOnce(redirect as never)
+      .mockResolvedValueOnce(final as never);
+
+    await safeFetch("https://example.com/", {
+      method: "POST",
+      body: "secret-body",
+    });
+
+    expect(vi.mocked(undiciFetch)).toHaveBeenCalledTimes(2);
+
+    const firstCallInit = vi.mocked(undiciFetch).mock.calls[0][1];
+    expect(firstCallInit?.method).toBe("POST");
+    expect(firstCallInit?.body).toBe("secret-body");
+
+    const secondCallInit = vi.mocked(undiciFetch).mock.calls[1][1];
+    expect(secondCallInit?.method).toBe("GET");
+    expect(secondCallInit?.body).toBeUndefined();
+  });
+
+  it("changes method to GET and drops body on 302 redirect from POST", async () => {
+    const redirect = makeResponse(302, { location: "https://example.com/final" });
+    const final = makeResponse(200);
+    vi.mocked(undiciFetch)
+      .mockResolvedValueOnce(redirect as never)
+      .mockResolvedValueOnce(final as never);
+
+    await safeFetch("https://example.com/", {
+      method: "POST",
+      body: "secret-body",
+    });
+
+    expect(vi.mocked(undiciFetch)).toHaveBeenCalledTimes(2);
+
+    const firstCallInit = vi.mocked(undiciFetch).mock.calls[0][1];
+    expect(firstCallInit?.method).toBe("POST");
+    expect(firstCallInit?.body).toBe("secret-body");
+
+    const secondCallInit = vi.mocked(undiciFetch).mock.calls[1][1];
+    expect(secondCallInit?.method).toBe("GET");
+    expect(secondCallInit?.body).toBeUndefined();
+  });
 });
