@@ -1,10 +1,5 @@
 /* oxlint-disable no-await-in-loop -- redirects must validate and fetch each hop sequentially */
-import {
-  fetch as undiciFetch,
-  Headers,
-  type Dispatcher,
-  type Response as UndiciResponse,
-} from "undici";
+import { fetch as undiciFetch, type Dispatcher, type Response as UndiciResponse } from "undici";
 import { validateUrl } from "./validate-url.mjs";
 import { createPinnedDispatcher } from "./pinned-dispatcher.mjs";
 import { UnsafeUrlError } from "./errors.mjs";
@@ -18,9 +13,6 @@ export interface SafeFetchOptions extends Omit<RequestInit, "signal"> {
 
 const DEFAULT_MAX_REDIRECTS = 10;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
-
-// Security: headers stripped on cross-origin redirects
-const SENSITIVE_HEADERS = new Set(["authorization", "cookie", "cookie2", "proxy-authorization"]);
 
 type NonEmptyAddresses = [ResolvedSafeAddress, ...ResolvedSafeAddress[]];
 
@@ -100,32 +92,22 @@ export async function safeFetch(
       // v8 ignore next
       response.body?.cancel().catch(() => {});
       const nextUrl = getRedirectUrl(response, currentUrl.href);
-
       closeDispatcher(dispatcher);
 
-      const requestMethod = currentFetchInit.method?.toUpperCase() ?? "GET";
-
       if (
-        (response.status === 303 && requestMethod !== "GET" && requestMethod !== "HEAD") ||
-        ((response.status === 301 || response.status === 302) && requestMethod === "POST")
+        response.status === 303 ||
+        ((response.status === 301 || response.status === 302) && currentFetchInit.method === "POST")
       ) {
         currentFetchInit = { ...currentFetchInit, method: "GET" };
         delete currentFetchInit.body;
-
-        if (currentFetchInit.headers) {
-          const headers = new Headers(currentFetchInit.headers);
-          headers.delete("content-type");
-          headers.delete("content-length");
-          currentFetchInit = { ...currentFetchInit, headers: headers as HeadersInit };
-        }
       }
 
       if (currentUrl.origin !== nextUrl.origin && currentFetchInit.headers) {
         const headers = new Headers(currentFetchInit.headers);
-        for (const sensitiveHeader of SENSITIVE_HEADERS) {
-          headers.delete(sensitiveHeader);
-        }
-        currentFetchInit = { ...currentFetchInit, headers: headers as HeadersInit };
+        headers.delete("authorization");
+        headers.delete("cookie");
+        headers.delete("proxy-authorization");
+        currentFetchInit = { ...currentFetchInit, headers };
       }
 
       currentUrl = nextUrl;

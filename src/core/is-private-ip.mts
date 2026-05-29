@@ -1,29 +1,19 @@
-// Special-use and private ranges for SSRF prevention
-const V4_BLOCKED_RANGES = [
+// Private IPv4 ranges for SSRF prevention
+const V4_PRIVATE_RANGES = [
   /^127\./,
   /^10\./,
   /^192\.168\./,
   /^172\.(1[6-9]|2\d|3[01])\./,
-  /^0\./,
+  /^0\.0\.0\.0$/,
   /^169\.254\./,
-  /^100\.(6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\./,
-  /^192\.0\.0\.(?!9$|10$)(?:\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])$/,
-  /^192\.88\.99\./,
-  /^192\.0\.2\./,
-  /^198\.51\.100\./,
-  /^203\.0\.113\./,
-  /^198\.(1[89])\./,
-  /^(22[4-9]|23\d)\./,
-  /^(24\d|25[0-5])\./,
 ];
 
-// Private/blocked IPv6 ranges (non-mapped)
-const V6_BLOCKED_RANGES = [
+// Private IPv6 ranges (non-mapped)
+const V6_PRIVATE_RANGES = [
   /^\[?::1\]?$/, // Loopback
   /^\[?::\]?$/, // Unspecified address
   /^\[?f[cd][0-9a-f]{2}:/i, // ULA fc00::/7 (covers fc** and fd**)
   /^\[?fe[89ab][0-9a-f]:/i, // Link-local fe80::/10 (covers fe80–febf)
-  /^\[?ff[0-9a-f]{2}:/i, // Multicast ff00::/8
 ];
 
 const IPV4_COMPONENT_BASE = 256;
@@ -100,11 +90,11 @@ function parseNumberComponent(
 }
 
 function isPrivateCanonicalIpv4(ip: string): boolean {
-  return V4_BLOCKED_RANGES.some((re) => re.test(ip));
+  return V4_PRIVATE_RANGES.some((re) => re.test(ip));
 }
 
 export function isPrivateIp(ip: string): boolean {
-  if (V6_BLOCKED_RANGES.some((re) => re.test(ip))) return true;
+  if (V6_PRIVATE_RANGES.some((re) => re.test(ip))) return true;
   const ipv4MappedMatch = ip.match(/^\[?::ffff:([^\]]+)\]?$/i);
   if (ipv4MappedMatch) {
     const ipv4 = resolveIpv4MappedEmbedded(ipv4MappedMatch[1]);
