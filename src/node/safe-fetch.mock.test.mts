@@ -19,8 +19,11 @@ const { fetch: undiciFetch } = await import("undici");
 
 const PUBLIC_ADDRESSES = [{ address: "93.184.216.34", family: 4 as const }];
 
-function makeResponse(status: number, headers: Record<string, string> = {}): Response {
-  return new Response(null, { status, headers });
+function makeResponse(
+  status: number,
+  headers: Record<string, string> = {},
+): Awaited<ReturnType<typeof undiciFetch>> {
+  return new Response(null, { status, headers }) as Awaited<ReturnType<typeof undiciFetch>>;
 }
 
 describe("safeFetch (mocked)", () => {
@@ -31,7 +34,7 @@ describe("safeFetch (mocked)", () => {
 
   it("returns a non-redirect response directly", async () => {
     const res = makeResponse(200);
-    vi.mocked(undiciFetch).mockResolvedValue(res as never);
+    vi.mocked(undiciFetch).mockResolvedValue(res);
     const result = await safeFetch("https://example.com/");
     expect(result.status).toBe(200);
   });
@@ -39,9 +42,7 @@ describe("safeFetch (mocked)", () => {
   it("follows a redirect to a final non-redirect response", async () => {
     const redirect = makeResponse(302, { location: "https://example.com/final" });
     const final = makeResponse(200);
-    vi.mocked(undiciFetch)
-      .mockResolvedValueOnce(redirect as never)
-      .mockResolvedValueOnce(final as never);
+    vi.mocked(undiciFetch).mockResolvedValueOnce(redirect).mockResolvedValueOnce(final);
     const result = await safeFetch("https://example.com/");
     expect(result.status).toBe(200);
     expect(vi.mocked(validateUrl)).toHaveBeenCalledTimes(2);
@@ -49,7 +50,7 @@ describe("safeFetch (mocked)", () => {
 
   it("throws UnsafeUrlError when redirect location header is missing", async () => {
     const redirect = makeResponse(302); // no location header
-    vi.mocked(undiciFetch).mockResolvedValue(redirect as never);
+    vi.mocked(undiciFetch).mockResolvedValue(redirect);
     await expect(safeFetch("https://example.com/")).rejects.toThrow(UnsafeUrlError);
     await expect(safeFetch("https://example.com/")).rejects.toMatchObject({
       reason: "redirect response missing Location header",
@@ -59,7 +60,7 @@ describe("safeFetch (mocked)", () => {
   it("throws UnsafeUrlError when redirect location is an invalid URL", async () => {
     // 'http://[' is an invalid URL that throws when passed to new URL() with any base
     const redirect = makeResponse(302, { location: "http://[" });
-    vi.mocked(undiciFetch).mockResolvedValue(redirect as never);
+    vi.mocked(undiciFetch).mockResolvedValue(redirect);
     await expect(safeFetch("https://example.com/")).rejects.toMatchObject({
       reason: "invalid redirect URL",
     });
@@ -67,7 +68,7 @@ describe("safeFetch (mocked)", () => {
 
   it("throws UnsafeUrlError when maxRedirects is exceeded", async () => {
     const redirect = makeResponse(302, { location: "https://example.com/next" });
-    vi.mocked(undiciFetch).mockResolvedValue(redirect as never);
+    vi.mocked(undiciFetch).mockResolvedValue(redirect);
     await expect(safeFetch("https://example.com/", { maxRedirects: 2 })).rejects.toMatchObject({
       reason: "too many redirects (max: 2)",
     });
@@ -85,7 +86,7 @@ describe("safeFetch (mocked)", () => {
     // by providing exactly one address and letting undici call lookup with all=false.
     // This is exercised via the integration test server path as well.
     const res = makeResponse(200);
-    vi.mocked(undiciFetch).mockResolvedValue(res as never);
+    vi.mocked(undiciFetch).mockResolvedValue(res);
     await safeFetch("https://example.com/");
     expect(vi.mocked(undiciFetch)).toHaveBeenCalled();
   });
@@ -93,9 +94,7 @@ describe("safeFetch (mocked)", () => {
   it("strips sensitive headers on cross-origin redirects", async () => {
     const redirect = makeResponse(302, { location: "https://evil.com/final" });
     const final = makeResponse(200);
-    vi.mocked(undiciFetch)
-      .mockResolvedValueOnce(redirect as never)
-      .mockResolvedValueOnce(final as never);
+    vi.mocked(undiciFetch).mockResolvedValueOnce(redirect).mockResolvedValueOnce(final);
 
     await safeFetch("https://example.com/", {
       headers: {
@@ -119,56 +118,71 @@ describe("safeFetch (mocked)", () => {
 
     // Redirected request has sensitive headers stripped
     const secondCallInit = vi.mocked(undiciFetch).mock.calls[1][1];
-    const secondHeaders = new Headers(secondCallInit?.headers as HeadersInit);
+    const secondHeaders = new Headers(secondCallInit?.headers);
     expect(secondHeaders.has("authorization")).toBe(false);
     expect(secondHeaders.has("cookie")).toBe(false);
     expect(secondHeaders.has("proxy-authorization")).toBe(false);
     expect(secondHeaders.get("content-type")).toBe("application/json");
   });
 
-  it("changes method to GET and drops body on 303 redirect", async () => {
-    const redirect = makeResponse(303, { location: "https://example.com/final" });
-    const final = makeResponse(200);
-    vi.mocked(undiciFetch)
-      .mockResolvedValueOnce(redirect as never)
-      .mockResolvedValueOnce(final as never);
-
-    await safeFetch("https://example.com/", {
+  it.each([
+    {
+      status: 303,
       method: "POST",
-      body: "secret-body",
-    });
-
-    expect(vi.mocked(undiciFetch)).toHaveBeenCalledTimes(2);
-
-    const firstCallInit = vi.mocked(undiciFetch).mock.calls[0][1];
-    expect(firstCallInit?.method).toBe("POST");
-    expect(firstCallInit?.body).toBe("secret-body");
-
-    const secondCallInit = vi.mocked(undiciFetch).mock.calls[1][1];
-    expect(secondCallInit?.method).toBe("GET");
-    expect(secondCallInit?.body).toBeUndefined();
-  });
-
-  it("changes method to GET and drops body on 302 redirect from POST", async () => {
-    const redirect = makeResponse(302, { location: "https://example.com/final" });
-    const final = makeResponse(200);
-    vi.mocked(undiciFetch)
-      .mockResolvedValueOnce(redirect as never)
-      .mockResolvedValueOnce(final as never);
-
-    await safeFetch("https://example.com/", {
+      expectedMethod: "GET",
+      stripsBodyHeaders: false,
+    },
+    {
+      status: 303,
+      method: "HEAD",
+      expectedMethod: "HEAD",
+      stripsBodyHeaders: false,
+    },
+    {
+      status: 302,
       method: "POST",
-      body: "secret-body",
-    });
+      expectedMethod: "GET",
+      stripsBodyHeaders: true,
+    },
+    {
+      status: 302,
+      method: "post",
+      expectedMethod: "GET",
+      stripsBodyHeaders: true,
+    },
+  ])(
+    "handles $status redirect method rewriting from $method",
+    async ({ status, method, expectedMethod, stripsBodyHeaders }) => {
+      const redirect = makeResponse(status, { location: "https://example.com/final" });
+      const final = makeResponse(200);
+      vi.mocked(undiciFetch).mockResolvedValueOnce(redirect).mockResolvedValueOnce(final);
 
-    expect(vi.mocked(undiciFetch)).toHaveBeenCalledTimes(2);
+      await safeFetch("https://example.com/", {
+        method,
+        body: method.toUpperCase() === "HEAD" ? undefined : "secret-body",
+        headers: {
+          "content-type": "text/plain",
+          "content-length": "11",
+        },
+      });
 
-    const firstCallInit = vi.mocked(undiciFetch).mock.calls[0][1];
-    expect(firstCallInit?.method).toBe("POST");
-    expect(firstCallInit?.body).toBe("secret-body");
+      expect(vi.mocked(undiciFetch)).toHaveBeenCalledTimes(2);
 
-    const secondCallInit = vi.mocked(undiciFetch).mock.calls[1][1];
-    expect(secondCallInit?.method).toBe("GET");
-    expect(secondCallInit?.body).toBeUndefined();
-  });
+      const firstCallInit = vi.mocked(undiciFetch).mock.calls[0][1];
+      expect(firstCallInit?.method).toBe(method);
+
+      const secondCallInit = vi.mocked(undiciFetch).mock.calls[1][1];
+      expect(secondCallInit?.method).toBe(expectedMethod);
+
+      if (expectedMethod === "GET") {
+        expect(secondCallInit?.body).toBeUndefined();
+      }
+
+      if (stripsBodyHeaders) {
+        const secondHeaders = new Headers(secondCallInit?.headers);
+        expect(secondHeaders.get("content-type")).toBeNull();
+        expect(secondHeaders.get("content-length")).toBeNull();
+      }
+    },
+  );
 });
