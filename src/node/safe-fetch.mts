@@ -1,5 +1,10 @@
 /* oxlint-disable no-await-in-loop -- redirects must validate and fetch each hop sequentially */
-import { fetch as undiciFetch, type Dispatcher, type Response as UndiciResponse } from "undici";
+import {
+  fetch as undiciFetch,
+  Headers,
+  type Dispatcher,
+  type Response as UndiciResponse,
+} from "undici";
 import { validateUrl } from "./validate-url.mjs";
 import { createPinnedDispatcher } from "./pinned-dispatcher.mjs";
 import { UnsafeUrlError } from "./errors.mjs";
@@ -13,6 +18,9 @@ export interface SafeFetchOptions extends Omit<RequestInit, "signal"> {
 
 const DEFAULT_MAX_REDIRECTS = 10;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+// Security: headers stripped on cross-origin redirects
+const SENSITIVE_HEADERS = new Set(["authorization", "cookie", "cookie2", "proxy-authorization"]);
 
 type NonEmptyAddresses = [ResolvedSafeAddress, ...ResolvedSafeAddress[]];
 
@@ -47,6 +55,7 @@ export async function safeFetch(
     signal,
     ...fetchInit
   } = options ?? {};
+  let currentFetchInit = fetchInit;
   let currentUrl = new URL(initialUrl);
 
   for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
@@ -67,7 +76,7 @@ export async function safeFetch(
 
     try {
       const response = await undiciFetch(currentUrl.href, {
-        ...fetchInit,
+        ...currentFetchInit,
         dispatcher,
         redirect: "manual",
         signal,
@@ -88,6 +97,16 @@ export async function safeFetch(
       // v8 ignore next
       response.body?.cancel().catch(() => {});
       const nextUrl = getRedirectUrl(response, currentUrl.href);
+
+      // Strip sensitive headers on cross-origin redirect
+      if (nextUrl.origin !== currentUrl.origin && currentFetchInit.headers) {
+        const headers = new Headers(currentFetchInit.headers);
+        for (const sensitiveHeader of SENSITIVE_HEADERS) {
+          headers.delete(sensitiveHeader);
+        }
+        currentFetchInit = { ...currentFetchInit, headers: headers as HeadersInit };
+      }
+
       closeDispatcher(dispatcher);
       currentUrl = nextUrl;
     } catch (error) {
