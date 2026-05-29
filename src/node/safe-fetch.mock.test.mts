@@ -37,12 +37,14 @@ describe("safeFetch (mocked)", () => {
     expect(result.status).toBe(200);
   });
 
-  it("follows a redirect to a final non-redirect response", async () => {
-    const redirect = makeResponse(302, { location: "https://example.com/final" });
-    const final = makeResponse(200);
+  function mockRedirect(status: number, location: string) {
     vi.mocked(undiciFetch)
-      .mockResolvedValueOnce(redirect as never)
-      .mockResolvedValueOnce(final as never);
+      .mockResolvedValueOnce(makeResponse(status, { location }) as never)
+      .mockResolvedValueOnce(makeResponse(200) as never);
+  }
+
+  it("follows a redirect to a final non-redirect response", async () => {
+    mockRedirect(302, "https://example.com/final");
     const result = await safeFetch("https://example.com/");
     expect(result.status).toBe(200);
     expect(vi.mocked(validateUrl)).toHaveBeenCalledTimes(2);
@@ -90,12 +92,6 @@ describe("safeFetch (mocked)", () => {
     await safeFetch("https://example.com/");
     expect(vi.mocked(undiciFetch)).toHaveBeenCalled();
   });
-
-  function mockRedirect(status: number, location: string) {
-    vi.mocked(undiciFetch)
-      .mockResolvedValueOnce(makeResponse(status, { location }) as never)
-      .mockResolvedValueOnce(makeResponse(200) as never);
-  }
 
   it("strips sensitive headers on cross-origin redirects", async () => {
     mockRedirect(302, "https://evil.com/final");
