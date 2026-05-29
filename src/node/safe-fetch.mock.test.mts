@@ -100,6 +100,7 @@ describe("safeFetch (mocked)", () => {
       headers: {
         authorization: "secret",
         cookie: "session",
+        cookie2: "legacy-session",
         "proxy-authorization": "proxy-secret",
         "content-type": "application/json",
       },
@@ -112,6 +113,7 @@ describe("safeFetch (mocked)", () => {
     expect(firstCallInit?.headers).toMatchObject({
       authorization: "secret",
       cookie: "session",
+      cookie2: "legacy-session",
       "proxy-authorization": "proxy-secret",
       "content-type": "application/json",
     });
@@ -121,6 +123,7 @@ describe("safeFetch (mocked)", () => {
     const secondHeaders = new Headers(secondCallInit?.headers);
     expect(secondHeaders.has("authorization")).toBe(false);
     expect(secondHeaders.has("cookie")).toBe(false);
+    expect(secondHeaders.has("cookie2")).toBe(false);
     expect(secondHeaders.has("proxy-authorization")).toBe(false);
     expect(secondHeaders.get("content-type")).toBe("application/json");
   });
