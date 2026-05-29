@@ -20,14 +20,7 @@ const DEFAULT_MAX_REDIRECTS = 10;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 // Security: headers stripped on cross-origin redirects
-const SENSITIVE_HEADERS = new Set([
-  "authorization",
-  "cookie",
-  "cookie2",
-  "proxy-authentication",
-  "proxy-authorization",
-  "www-authenticate",
-]);
+const SENSITIVE_HEADERS = new Set(["authorization", "cookie", "cookie2", "proxy-authorization"]);
 
 type NonEmptyAddresses = [ResolvedSafeAddress, ...ResolvedSafeAddress[]];
 
@@ -62,6 +55,7 @@ export async function safeFetch(
     signal,
     ...fetchInit
   } = options ?? {};
+  let currentFetchInit = fetchInit;
   let currentUrl = new URL(initialUrl);
 
   for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
@@ -82,7 +76,7 @@ export async function safeFetch(
 
     try {
       const response = await undiciFetch(currentUrl.href, {
-        ...fetchInit,
+        ...currentFetchInit,
         dispatcher,
         redirect: "manual",
         signal,
@@ -105,13 +99,12 @@ export async function safeFetch(
       const nextUrl = getRedirectUrl(response, currentUrl.href);
 
       // Strip sensitive headers on cross-origin redirect
-      if (nextUrl.origin !== currentUrl.origin && fetchInit.headers) {
-        const headers = new Headers(fetchInit.headers);
+      if (nextUrl.origin !== currentUrl.origin && currentFetchInit.headers) {
+        const headers = new Headers(currentFetchInit.headers);
         for (const sensitiveHeader of SENSITIVE_HEADERS) {
           headers.delete(sensitiveHeader);
         }
-        // we need to re-assign fetchInit otherwise we mutate the shared options object
-        Object.assign(fetchInit, { headers: headers as HeadersInit });
+        currentFetchInit = { ...currentFetchInit, headers: headers as HeadersInit };
       }
 
       closeDispatcher(dispatcher);
