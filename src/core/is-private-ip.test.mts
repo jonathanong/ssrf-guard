@@ -46,9 +46,16 @@ describe("isPrivateIp", () => {
 
     it("returns true for IETF protocol assignments and test-net addresses", () => {
       expect(isPrivateIp("192.0.0.170")).toBe(true);
+      expect(isPrivateIp("192.0.0.9")).toBe(false);
+      expect(isPrivateIp("192.0.0.10")).toBe(false);
       expect(isPrivateIp("192.0.2.1")).toBe(true);
       expect(isPrivateIp("198.51.100.1")).toBe(true);
       expect(isPrivateIp("203.0.113.1")).toBe(true);
+    });
+
+    it("returns true for 6to4 relay anycast range", () => {
+      expect(isPrivateIp("192.88.99.1")).toBe(true);
+      expect(isPrivateIp("192.88.99.254")).toBe(true);
     });
 
     it("returns true for benchmarking addresses", () => {
@@ -144,6 +151,15 @@ describe("isPrivateIp", () => {
 
     it("returns true for ::ffff:10.0.0.1 (private mapped)", () => {
       expect(isPrivateIp("::ffff:10.0.0.1")).toBe(true);
+    });
+
+    it("returns true for ::ffff: mapped blocked ranges", () => {
+      expect(isPrivateIp("::ffff:100.64.0.1")).toBe(true); // CGNAT
+      expect(isPrivateIp("::ffff:100.100.100.200")).toBe(true); // CGNAT-style metadata address
+      expect(isPrivateIp("::ffff:192.0.0.170")).toBe(true); // TEST-NET-3 / IETF assignment
+      expect(isPrivateIp("::ffff:192.88.99.1")).toBe(true); // 6to4 Relay Anycast
+      expect(isPrivateIp("::ffff:198.51.100.1")).toBe(true); // TEST-NET-2
+      expect(isPrivateIp("::ffff:240.0.0.1")).toBe(true); // Reserved
     });
 
     it("returns true for hex-group form (Node.js URL normalization)", () => {

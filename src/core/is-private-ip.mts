@@ -1,5 +1,5 @@
-// Private IPv4 ranges for SSRF prevention
-const V4_PRIVATE_RANGES = [
+// Special-use and private ranges for SSRF prevention
+const V4_BLOCKED_RANGES = [
   /^127\./,
   /^10\./,
   /^192\.168\./,
@@ -7,7 +7,8 @@ const V4_PRIVATE_RANGES = [
   /^0\./,
   /^169\.254\./,
   /^100\.(6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\./,
-  /^192\.0\.0\./,
+  /^192\.0\.0\.(?!9$|10$)(?:\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])$/,
+  /^192\.88\.99\./,
   /^192\.0\.2\./,
   /^198\.51\.100\./,
   /^203\.0\.113\./,
@@ -16,8 +17,8 @@ const V4_PRIVATE_RANGES = [
   /^(24\d|25[0-5])\./,
 ];
 
-// Private IPv6 ranges (non-mapped)
-const V6_PRIVATE_RANGES = [
+// Private/blocked IPv6 ranges (non-mapped)
+const V6_BLOCKED_RANGES = [
   /^\[?::1\]?$/, // Loopback
   /^\[?::\]?$/, // Unspecified address
   /^\[?f[cd][0-9a-f]{2}:/i, // ULA fc00::/7 (covers fc** and fd**)
@@ -99,11 +100,11 @@ function parseNumberComponent(
 }
 
 function isPrivateCanonicalIpv4(ip: string): boolean {
-  return V4_PRIVATE_RANGES.some((re) => re.test(ip));
+  return V4_BLOCKED_RANGES.some((re) => re.test(ip));
 }
 
 export function isPrivateIp(ip: string): boolean {
-  if (V6_PRIVATE_RANGES.some((re) => re.test(ip))) return true;
+  if (V6_BLOCKED_RANGES.some((re) => re.test(ip))) return true;
   const ipv4MappedMatch = ip.match(/^\[?::ffff:([^\]]+)\]?$/i);
   if (ipv4MappedMatch) {
     const ipv4 = resolveIpv4MappedEmbedded(ipv4MappedMatch[1]);
