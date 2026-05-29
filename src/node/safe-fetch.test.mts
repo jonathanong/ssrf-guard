@@ -1,5 +1,5 @@
 import http from "node:http";
-import { afterAll, beforeAll, describe, it, expect, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, it, expect, vi } from "vitest";
 import { safeFetch } from "./safe-fetch.mjs";
 import { UnsafeUrlError } from "./errors.mjs";
 import * as validateUrlMod from "./validate-url.mjs";
@@ -42,6 +42,10 @@ beforeAll(
 );
 
 afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+beforeEach(() => {
+  capturedHeaders = {};
+});
 
 describe("safeFetch", () => {
   it("fetches a public URL", async () => {
