@@ -17,13 +17,27 @@ export interface BlockedHostnamePolicy {
   suffixes: readonly string[];
 }
 
+export function sanitizeUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.username || u.password) {
+      u.username = "***";
+      u.password = "***";
+      return u.href;
+    }
+    return url;
+  } catch {
+    return url.replace(/(:\/\/)(?:[^@/]+)@/, "$1***:***@");
+  }
+}
+
 export class UnsafeResolvedAddressError extends Error {
   readonly rawUrl: string;
   readonly address: string;
 
   constructor(rawUrl: string, address: string) {
     super(`DNS resolved to private IP: ${address}`);
-    this.rawUrl = rawUrl;
+    this.rawUrl = sanitizeUrl(rawUrl);
     this.address = address;
   }
 }
