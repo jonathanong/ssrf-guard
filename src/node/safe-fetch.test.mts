@@ -181,6 +181,23 @@ describe("safeFetch", () => {
       await testRedirectMethod("/redirect-303", "GET", undefined, undefined);
     });
 
+    it("retains HEAD method on 303 redirect", async () => {
+      vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+        return [{ address: "127.0.0.1", family: 4 }];
+      });
+      try {
+        const response = await safeFetch(`${baseUrl}/redirect-303`, {
+          method: "HEAD",
+        });
+        expect(response.status).toBe(200);
+        await response.body?.cancel();
+
+        expect(capturedMethod).toBe("HEAD");
+      } finally {
+        vi.restoreAllMocks();
+      }
+    });
+
     it("retains POST method on 307 redirect", async () => {
       await testRedirectMethod("/redirect-307", "POST", "5", "text/plain");
     });
