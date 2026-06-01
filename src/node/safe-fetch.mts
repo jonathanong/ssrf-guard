@@ -98,6 +98,31 @@ export async function safeFetch(
       response.body?.cancel().catch(() => {});
       const nextUrl = getRedirectUrl(response, currentUrl.href);
 
+      // Handle method changes on 301/302/303 redirects
+      if (
+        response.status === 303 ||
+        ((response.status === 301 || response.status === 302) &&
+          currentFetchInit.method?.toUpperCase() === "POST")
+      ) {
+        currentFetchInit = {
+          ...currentFetchInit,
+          method:
+            response.status === 303 && currentFetchInit.method?.toUpperCase() === "HEAD"
+              ? "HEAD"
+              : "GET",
+        };
+        if (currentFetchInit.body !== undefined) {
+          const { body: _body, ...restInit } = currentFetchInit;
+          currentFetchInit = restInit;
+        }
+        if (currentFetchInit.headers) {
+          const headers = new Headers(currentFetchInit.headers);
+          headers.delete("content-length");
+          headers.delete("content-type");
+          currentFetchInit = { ...currentFetchInit, headers: headers as HeadersInit };
+        }
+      }
+
       // Strip sensitive headers on cross-origin redirect
       if (nextUrl.origin !== currentUrl.origin && currentFetchInit.headers) {
         const headers = new Headers(currentFetchInit.headers);
