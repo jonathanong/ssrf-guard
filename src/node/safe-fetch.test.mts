@@ -8,6 +8,7 @@ import * as validateUrlMod from "./validate-url.mjs";
 let server: http.Server;
 let baseUrl: string;
 let capturedHeaders: http.IncomingHttpHeaders;
+let capturedMethod: string | undefined;
 
 beforeAll(
   () =>
@@ -24,8 +25,12 @@ beforeAll(
         } else if (req.url === "/redirect-loop") {
           res.writeHead(302, { location: `${baseUrl}/redirect-loop` });
           res.end();
+        } else if (req.url === "/redirect-303") {
+          res.writeHead(303, { location: `${baseUrl}/ok` });
+          res.end();
         } else if (req.url === "/ok") {
           capturedHeaders = req.headers;
+          capturedMethod = req.method;
           res.writeHead(200, { "content-type": "text/plain" });
           res.end("ok");
         } else {
@@ -45,6 +50,7 @@ afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
 beforeEach(() => {
   capturedHeaders = {};
+  capturedMethod = undefined;
 });
 
 describe("safeFetch", () => {
@@ -91,6 +97,28 @@ describe("safeFetch", () => {
       expect(capturedHeaders.authorization).toBe("secret");
       expect(capturedHeaders.cookie).toBe("session=1");
       expect(capturedHeaders["x-custom"]).toBe("value");
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("changes POST to GET and drops body on 303 redirect", async () => {
+    vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+      return [{ address: "127.0.0.1", family: 4 }];
+    });
+
+    try {
+      const response = await safeFetch(`${baseUrl}/redirect-303`, {
+        method: "POST",
+        body: "sensitive_data",
+        headers: { "content-type": "text/plain", "content-length": "14" },
+      });
+      expect(response.status).toBe(200);
+      await response.body?.cancel();
+
+      expect(capturedMethod).toBe("GET");
+      expect(capturedHeaders["content-type"]).toBeUndefined();
+      expect(capturedHeaders["content-length"]).toBeUndefined();
     } finally {
       vi.restoreAllMocks();
     }
