@@ -124,6 +124,25 @@ describe("safeFetch", () => {
     }
   });
 
+  it("changes POST to GET and drops body on 303 redirect without headers", async () => {
+    vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+      return [{ address: "127.0.0.1", family: 4 }];
+    });
+
+    try {
+      const response = await safeFetch(`${baseUrl}/redirect-303`, {
+        method: "POST",
+        body: "sensitive_data",
+      });
+      expect(response.status).toBe(200);
+      await response.body?.cancel();
+
+      expect(capturedMethod).toBe("GET");
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
   it("throws UnsafeUrlError for private IP literal", async () => {
     await expect(safeFetch("http://10.0.0.1/")).rejects.toThrow(UnsafeUrlError);
   });
