@@ -98,11 +98,31 @@ export async function safeFetch(
       response.body?.cancel().catch(() => {});
       const nextUrl = getRedirectUrl(response, currentUrl.href);
 
-      // Strip sensitive headers on cross-origin redirect
-      if (nextUrl.origin !== currentUrl.origin && currentFetchInit.headers) {
+      // Adjust method and body for redirects (fetch spec: 301/302 POST -> GET, 303 non-GET/HEAD -> GET)
+      const currentMethod = (currentFetchInit.method ?? "GET").toUpperCase();
+      let isMethodChanged = false;
+      if (
+        (response.status === 303 && currentMethod !== "GET" && currentMethod !== "HEAD") ||
+        ((response.status === 301 || response.status === 302) && currentMethod === "POST")
+      ) {
+        isMethodChanged = true;
+        currentFetchInit = { ...currentFetchInit, method: "GET" };
+        delete currentFetchInit.body;
+      }
+
+      // Strip sensitive headers on cross-origin redirect, and body-related headers if method changed
+      if ((nextUrl.origin !== currentUrl.origin || isMethodChanged) && currentFetchInit.headers) {
         const headers = new Headers(currentFetchInit.headers);
-        for (const sensitiveHeader of SENSITIVE_HEADERS) {
-          headers.delete(sensitiveHeader);
+        if (nextUrl.origin !== currentUrl.origin) {
+          for (const sensitiveHeader of SENSITIVE_HEADERS) {
+            headers.delete(sensitiveHeader);
+          }
+        }
+        if (isMethodChanged) {
+          headers.delete("content-length");
+          headers.delete("content-type");
+          headers.delete("content-encoding");
+          headers.delete("content-language");
         }
         currentFetchInit = { ...currentFetchInit, headers: headers as HeadersInit };
       }

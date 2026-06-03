@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines */
 import http from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, it, expect, vi } from "vitest";
 import { safeFetch } from "./safe-fetch.mjs";
@@ -16,6 +17,15 @@ beforeAll(
         if (req.url === "/redirect") {
           res.writeHead(302, { location: `${baseUrl}/ok` });
           res.end();
+        } else if (req.url === "/redirect-301") {
+          res.writeHead(301, { location: `${baseUrl}/ok` });
+          res.end();
+        } else if (req.url === "/redirect-303") {
+          res.writeHead(303, { location: `${baseUrl}/ok` });
+          res.end();
+        } else if (req.url === "/redirect-307") {
+          res.writeHead(307, { location: `${baseUrl}/ok` });
+          res.end();
         } else if (req.url === "/cross-origin-redirect") {
           // Use localhost instead of 127.0.0.1 to simulate a cross-origin redirect
           const crossOriginUrl = baseUrl.replace("127.0.0.1", "localhost");
@@ -26,8 +36,13 @@ beforeAll(
           res.end();
         } else if (req.url === "/ok") {
           capturedHeaders = req.headers;
-          res.writeHead(200, { "content-type": "text/plain" });
-          res.end("ok");
+
+          let bodyReceived = "";
+          req.on("data", (chunk) => (bodyReceived += chunk));
+          req.on("end", () => {
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(JSON.stringify({ method: req.method, body: bodyReceived }));
+          });
         } else {
           res.writeHead(404);
           res.end();
@@ -51,7 +66,8 @@ describe("safeFetch", () => {
   it("fetches a public URL", async () => {
     const response = await safeFetch("https://one.one.one.one/");
     expect(response.status).toBeLessThan(500);
-    await response.body?.cancel();
+    const _body = await response.text();
+    // drain body instead of cancelling to avoid warnings if we want, but cancel is fine
   });
 
   it("strips sensitive headers on cross-origin redirect", async () => {
@@ -119,5 +135,78 @@ describe("safeFetch", () => {
 
   it("throws UnsafeUrlError for non-http scheme", async () => {
     await expect(safeFetch("ftp://example.com")).rejects.toThrow(UnsafeUrlError);
+  });
+
+  describe("redirect method and body handling", () => {
+    it("changes POST to GET on 301 and drops body", async () => {
+      vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => [
+        { address: "127.0.0.1", family: 4 },
+      ]);
+      try {
+        const response = await safeFetch(`${baseUrl}/redirect-301`, {
+          method: "POST",
+          body: "test body",
+          headers: { "content-type": "text/plain", "content-length": "9" },
+        });
+        const data: any = await response.json();
+        expect(data.method).toBe("GET");
+        expect(data.body).toBe("");
+        expect(capturedHeaders["content-length"]).toBeUndefined();
+        expect(capturedHeaders["content-type"]).toBeUndefined();
+      } finally {
+        vi.restoreAllMocks();
+      }
+    });
+
+    it("changes POST to GET on 302 and drops body", async () => {
+      vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => [
+        { address: "127.0.0.1", family: 4 },
+      ]);
+      try {
+        const response = await safeFetch(`${baseUrl}/redirect`, {
+          method: "POST",
+          body: "test body",
+        });
+        const data: any = await response.json();
+        expect(data.method).toBe("GET");
+        expect(data.body).toBe("");
+      } finally {
+        vi.restoreAllMocks();
+      }
+    });
+
+    it("changes POST to GET on 303 and drops body", async () => {
+      vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => [
+        { address: "127.0.0.1", family: 4 },
+      ]);
+      try {
+        const response = await safeFetch(`${baseUrl}/redirect-303`, {
+          method: "POST",
+          body: "test body",
+        });
+        const data: any = await response.json();
+        expect(data.method).toBe("GET");
+        expect(data.body).toBe("");
+      } finally {
+        vi.restoreAllMocks();
+      }
+    });
+
+    it("retains POST method and body on 307", async () => {
+      vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => [
+        { address: "127.0.0.1", family: 4 },
+      ]);
+      try {
+        const response = await safeFetch(`${baseUrl}/redirect-307`, {
+          method: "POST",
+          body: "test body",
+        });
+        const data: any = await response.json();
+        expect(data.method).toBe("POST");
+        expect(data.body).toBe("test body");
+      } finally {
+        vi.restoreAllMocks();
+      }
+    });
   });
 });
