@@ -1,11 +1,14 @@
+import { redactUrl } from "../core/index.mjs";
+
 export class UnsafeUrlError extends Error {
   readonly rawUrl: string;
   readonly reason: string;
 
   constructor(rawUrl: string, reason: string) {
-    super(`Unsafe URL: ${reason} (${rawUrl})`);
+    const redacted = redactUrl(rawUrl);
+    super(`Unsafe URL: ${reason} (${redacted})`);
     this.name = "UnsafeUrlError";
-    this.rawUrl = rawUrl;
+    this.rawUrl = redacted;
     this.reason = reason;
   }
 }

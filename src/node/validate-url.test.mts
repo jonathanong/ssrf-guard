@@ -41,4 +41,16 @@ describe("validateUrl", () => {
     expect(error).toBeInstanceOf(UnsafeUrlError);
     expect((error as UnsafeUrlError).reason).not.toContain("hostname not allowed");
   });
+
+  it("redacts credentials from error messages", async () => {
+    const error = await validateUrl("http://admin:supersecret@10.0.0.1/").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(UnsafeUrlError);
+    expect((error as UnsafeUrlError).message).toContain("http://***:***@10.0.0.1/");
+  });
+
+  it("redacts credentials from DNS resolution error messages", async () => {
+    const error = await validateUrl("http://admin:supersecret@localhost/").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(UnsafeUrlError);
+    expect((error as UnsafeUrlError).message).toContain("http://***:***@localhost/");
+  });
 });
