@@ -11,6 +11,7 @@
 **Prevention:** Extend validation definitions with known non-routable, multicast, CGNAT, and broadcast IP ranges as part of `isPrivateIp`. Ensure unit tests actively assert unroutable metadata IPs block properly.
 
 ## 2024-06-05 - URL Credentials Leak in Error Messages
+
 **Vulnerability:** Error messages from UnsafeUrlError and UnsafeResolvedAddressError exposed the full raw URL, which could include sensitive basic authentication credentials (e.g. http://user:pass@host/).
 **Learning:** Even though the library validates the URL to prevent SSRF, it was not redacting sensitive parts of the input URL before returning error responses. This leads to a credential leak in application logs when the error is reported.
 **Prevention:** Always parse and sanitize URLs in error messages to remove or mask .username and .password components.
