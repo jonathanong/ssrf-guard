@@ -21,8 +21,8 @@ export function redactUrl(url: string): string {
   try {
     const parsed = new URL(url);
     if (parsed.username || parsed.password) {
-      parsed.username = "***";
-      parsed.password = "***";
+      parsed.username = "***"; // NOSONAR
+      parsed.password = "***"; // NOSONAR
       return parsed.href;
     }
   } catch {
