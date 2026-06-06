@@ -9,7 +9,9 @@
 **Vulnerability:** The `isPrivateIp` logic missed several critical internal networks, such as `0.0.0.0/8`, the `100.64.0.0/10` CGNAT range (used by Alibaba Cloud for instance metadata, and Tailscale), and `240.0.0.0/4` Reserved ranges, among others.
 **Learning:** Hardcoded, specific regexes for traditional private networks (10.x/172.16.x/192.168.x) were inadequate for defense-in-depth against cloud-specific and test-net SSRF attacks.
 **Prevention:** Extend validation definitions with known non-routable, multicast, CGNAT, and broadcast IP ranges as part of `isPrivateIp`. Ensure unit tests actively assert unroutable metadata IPs block properly.
+
 ## 2025-02-24 - Cross-Origin Redirect POST Body Leakage
+
 **Vulnerability:** `safeFetch` manual redirect handling preserved the HTTP method and request body across 301, 302, and 303 redirects.
 **Learning:** When implementing manual redirect loops using `undici` or `fetch`, standard HTTP specification rules (where POST bodies drop and methods become GET on 301/302/303) must be explicitly manually replicated.
 **Prevention:** Explicitly change methods to GET and delete bodies on 303, or on 301/302 when the original method is POST.

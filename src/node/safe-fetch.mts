@@ -99,7 +99,10 @@ export async function safeFetch(
       const nextUrl = getRedirectUrl(response, currentUrl.href);
 
       // Security: methods and bodies are stripped on 301/302/303 redirects
-      if (response.status === 303 || ((response.status === 301 || response.status === 302) && currentFetchInit.method === "POST")) {
+      if (
+        response.status === 303 ||
+        ((response.status === 301 || response.status === 302) && currentFetchInit.method === "POST")
+      ) {
         currentFetchInit = { ...currentFetchInit, method: "GET" };
         delete currentFetchInit.body;
       }
