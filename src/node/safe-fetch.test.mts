@@ -21,6 +21,12 @@ beforeAll(
           const crossOriginUrl = baseUrl.replace("127.0.0.1", "localhost");
           res.writeHead(302, { location: `${crossOriginUrl}/ok` });
           res.end();
+        } else if (req.url === "/redirect-303") {
+          res.writeHead(303, { location: `${baseUrl}/ok` });
+          res.end();
+        } else if (req.url === "/redirect-302-post") {
+          res.writeHead(302, { location: `${baseUrl}/ok` });
+          res.end();
         } else if (req.url === "/redirect-loop") {
           res.writeHead(302, { location: `${baseUrl}/redirect-loop` });
           res.end();
@@ -119,5 +125,39 @@ describe("safeFetch", () => {
 
   it("throws UnsafeUrlError for non-http scheme", async () => {
     await expect(safeFetch("ftp://example.com")).rejects.toThrow(UnsafeUrlError);
+  });
+
+  it("changes POST to GET on 303 redirect and drops body", async () => {
+    vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+      return [{ address: "127.0.0.1", family: 4 }];
+    });
+
+    try {
+      const response = await safeFetch(`${baseUrl}/redirect-303`, {
+        method: "POST",
+        body: "test body",
+      });
+      expect(response.status).toBe(200);
+      await response.body?.cancel();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("changes POST to GET on 302 redirect and drops body", async () => {
+    vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+      return [{ address: "127.0.0.1", family: 4 }];
+    });
+
+    try {
+      const response = await safeFetch(`${baseUrl}/redirect-302-post`, {
+        method: "POST",
+        body: "test body",
+      });
+      expect(response.status).toBe(200);
+      await response.body?.cancel();
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 });
