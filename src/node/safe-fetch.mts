@@ -98,6 +98,12 @@ export async function safeFetch(
       response.body?.cancel().catch(() => {});
       const nextUrl = getRedirectUrl(response, currentUrl.href);
 
+      // Security: methods and bodies are stripped on 301/302/303 redirects
+      if (response.status === 303 || ((response.status === 301 || response.status === 302) && currentFetchInit.method === "POST")) {
+        currentFetchInit = { ...currentFetchInit, method: "GET" };
+        delete currentFetchInit.body;
+      }
+
       // Strip sensitive headers on cross-origin redirect
       if (nextUrl.origin !== currentUrl.origin && currentFetchInit.headers) {
         const headers = new Headers(currentFetchInit.headers);
