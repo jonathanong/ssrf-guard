@@ -21,6 +21,17 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 // Security: headers stripped on cross-origin redirects
 const SENSITIVE_HEADERS = new Set(["authorization", "cookie", "cookie2", "proxy-authorization"]);
+const REQUEST_BODY_HEADERS = new Set([
+  "content-disposition",
+  "content-encoding",
+  "content-language",
+  "content-length",
+  "content-location",
+  "content-md5",
+  "content-range",
+  "content-type",
+  "transfer-encoding",
+]);
 
 type NonEmptyAddresses = [ResolvedSafeAddress, ...ResolvedSafeAddress[]];
 
@@ -119,10 +130,9 @@ export async function safeFetch(
           }
         }
         if (isMethodChanged) {
-          headers.delete("content-length");
-          headers.delete("content-type");
-          headers.delete("content-encoding");
-          headers.delete("content-language");
+          for (const bodyHeader of REQUEST_BODY_HEADERS) {
+            headers.delete(bodyHeader);
+          }
         }
         currentFetchInit = { ...currentFetchInit, headers: headers as HeadersInit };
       }

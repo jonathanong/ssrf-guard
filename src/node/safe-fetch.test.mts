@@ -1,6 +1,6 @@
 /* oxlint-disable max-lines */
 import http from "node:http";
-import { afterAll, beforeAll, beforeEach, describe, it, expect, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, it, expect, vi } from "vitest";
 import { safeFetch } from "./safe-fetch.mjs";
 import { UnsafeUrlError } from "./errors.mjs";
 import * as validateUrlMod from "./validate-url.mjs";
@@ -25,6 +25,9 @@ beforeAll(
           res.end();
         } else if (req.url === "/redirect-307") {
           res.writeHead(307, { location: `${baseUrl}/ok` });
+          res.end();
+        } else if (req.url === "/redirect-308") {
+          res.writeHead(308, { location: `${baseUrl}/ok` });
           res.end();
         } else if (req.url === "/cross-origin-redirect") {
           // Use localhost instead of 127.0.0.1 to simulate a cross-origin redirect
@@ -62,6 +65,16 @@ beforeEach(() => {
   capturedHeaders = {};
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function mockValidateLocalhost() {
+  vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => [
+    { address: "127.0.0.1", family: 4 },
+  ]);
+}
+
 describe("safeFetch", () => {
   it("fetches a public URL", async () => {
     const response = await safeFetch("https://one.one.one.one/");
@@ -72,44 +85,32 @@ describe("safeFetch", () => {
 
   it("strips sensitive headers on cross-origin redirect", async () => {
     // Temporarily mock validateUrl to allow private IPs and localhost for testing redirect header stripping
-    vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
-      return [{ address: "127.0.0.1", family: 4 }];
+    mockValidateLocalhost();
+
+    const response = await safeFetch(`${baseUrl}/cross-origin-redirect`, {
+      headers: { authorization: "secret", cookie: "session=1", "x-custom": "value" },
     });
+    expect(response.status).toBe(200);
+    await response.body?.cancel();
 
-    try {
-      const response = await safeFetch(`${baseUrl}/cross-origin-redirect`, {
-        headers: { authorization: "secret", cookie: "session=1", "x-custom": "value" },
-      });
-      expect(response.status).toBe(200);
-      await response.body?.cancel();
-
-      expect(capturedHeaders.authorization).toBeUndefined();
-      expect(capturedHeaders.cookie).toBeUndefined();
-      expect(capturedHeaders["x-custom"]).toBe("value");
-    } finally {
-      vi.restoreAllMocks();
-    }
+    expect(capturedHeaders.authorization).toBeUndefined();
+    expect(capturedHeaders.cookie).toBeUndefined();
+    expect(capturedHeaders["x-custom"]).toBe("value");
   });
 
   it("retains sensitive headers on same-origin redirect", async () => {
     // Temporarily mock validateUrl to allow private IPs for testing redirect header stripping
-    vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
-      return [{ address: "127.0.0.1", family: 4 }];
+    mockValidateLocalhost();
+
+    const response = await safeFetch(`${baseUrl}/redirect`, {
+      headers: { authorization: "secret", cookie: "session=1", "x-custom": "value" },
     });
+    expect(response.status).toBe(200);
+    await response.body?.cancel();
 
-    try {
-      const response = await safeFetch(`${baseUrl}/redirect`, {
-        headers: { authorization: "secret", cookie: "session=1", "x-custom": "value" },
-      });
-      expect(response.status).toBe(200);
-      await response.body?.cancel();
-
-      expect(capturedHeaders.authorization).toBe("secret");
-      expect(capturedHeaders.cookie).toBe("session=1");
-      expect(capturedHeaders["x-custom"]).toBe("value");
-    } finally {
-      vi.restoreAllMocks();
-    }
+    expect(capturedHeaders.authorization).toBe("secret");
+    expect(capturedHeaders.cookie).toBe("session=1");
+    expect(capturedHeaders["x-custom"]).toBe("value");
   });
 
   it("throws UnsafeUrlError for private IP literal", async () => {
@@ -142,26 +143,37 @@ describe("safeFetch", () => {
       urlPath: string,
       expectedMethod: string,
       expectedBody: string,
+      method = "POST",
     ) {
-      vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => [
-        { address: "127.0.0.1", family: 4 },
-      ]);
-      try {
-        const response = await safeFetch(`${baseUrl}${urlPath}`, {
-          method: "POST",
-          body: "test body",
-          headers: { "content-type": "text/plain", "content-length": "9" },
-        });
-        const data: any = await response.json();
-        expect(data.method).toBe(expectedMethod);
-        expect(data.body).toBe(expectedBody);
+      mockValidateLocalhost();
 
-        if (expectedMethod === "GET") {
-          expect(capturedHeaders["content-length"]).toBeUndefined();
-          expect(capturedHeaders["content-type"]).toBeUndefined();
-        }
-      } finally {
-        vi.restoreAllMocks();
+      const response = await safeFetch(`${baseUrl}${urlPath}`, {
+        method,
+        body: "test body",
+        headers: {
+          "content-disposition": "form-data",
+          "content-encoding": "identity",
+          "content-language": "en",
+          "content-length": "9",
+          "content-location": "/request-body",
+          "content-md5": "CY9rzUYh03PK3k6DJie09g==",
+          "content-range": "bytes 0-8/9",
+          "content-type": "text/plain",
+        },
+      });
+      const data: any = await response.json();
+      expect(data.method).toBe(expectedMethod);
+      expect(data.body).toBe(expectedBody);
+
+      if (expectedMethod === "GET") {
+        expect(capturedHeaders["content-disposition"]).toBeUndefined();
+        expect(capturedHeaders["content-encoding"]).toBeUndefined();
+        expect(capturedHeaders["content-language"]).toBeUndefined();
+        expect(capturedHeaders["content-length"]).toBeUndefined();
+        expect(capturedHeaders["content-location"]).toBeUndefined();
+        expect(capturedHeaders["content-md5"]).toBeUndefined();
+        expect(capturedHeaders["content-range"]).toBeUndefined();
+        expect(capturedHeaders["content-type"]).toBeUndefined();
       }
     }
 
@@ -171,7 +183,11 @@ describe("safeFetch", () => {
       testRedirectBehavior("/redirect", "GET", ""));
     it("changes POST to GET on 303 and drops body", () =>
       testRedirectBehavior("/redirect-303", "GET", ""));
+    it("changes PUT to GET on 303 and drops body", () =>
+      testRedirectBehavior("/redirect-303", "GET", "", "PUT"));
     it("retains POST method and body on 307", () =>
       testRedirectBehavior("/redirect-307", "POST", "test body"));
+    it("retains POST method and body on 308", () =>
+      testRedirectBehavior("/redirect-308", "POST", "test body"));
   });
 });
