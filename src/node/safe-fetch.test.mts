@@ -214,6 +214,23 @@ describe("safeFetch", () => {
       );
     });
 
+    it("changes bodyless POST to GET on 303 redirect", async () => {
+      vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+        return [{ address: "127.0.0.1", family: 4 }];
+      });
+      try {
+        const response = await safeFetch(`${baseUrl}/redirect-303`, {
+          method: "POST",
+        });
+        expect(response.status).toBe(200);
+        await response.body?.cancel();
+
+        expect(capturedMethod).toBe("GET");
+      } finally {
+        vi.restoreAllMocks();
+      }
+    });
+
     it("retains GET method and headers on 303 redirect", async () => {
       vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
         return [{ address: "127.0.0.1", family: 4 }];
