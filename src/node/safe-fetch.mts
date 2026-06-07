@@ -107,6 +107,15 @@ export async function safeFetch(
         currentFetchInit = { ...currentFetchInit, headers: headers as HeadersInit };
       }
 
+      // Security: Handle method and body changes on redirects
+      if (
+        response.status === 303 ||
+        ((response.status === 301 || response.status === 302) && currentFetchInit.method === "POST")
+      ) {
+        currentFetchInit = { ...currentFetchInit, method: "GET" };
+        delete currentFetchInit.body;
+      }
+
       closeDispatcher(dispatcher);
       currentUrl = nextUrl;
     } catch (error) {

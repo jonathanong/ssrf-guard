@@ -8,6 +8,8 @@ import * as validateUrlMod from "./validate-url.mjs";
 let server: http.Server;
 let baseUrl: string;
 let capturedHeaders: http.IncomingHttpHeaders;
+let capturedMethod: string | undefined;
+let capturedBody: string | undefined;
 
 beforeAll(
   () =>
@@ -24,10 +26,19 @@ beforeAll(
         } else if (req.url === "/redirect-loop") {
           res.writeHead(302, { location: `${baseUrl}/redirect-loop` });
           res.end();
+        } else if (req.url === "/redirect-307") {
+          res.writeHead(307, { location: `${baseUrl}/ok` });
+          res.end();
         } else if (req.url === "/ok") {
           capturedHeaders = req.headers;
-          res.writeHead(200, { "content-type": "text/plain" });
-          res.end("ok");
+          capturedMethod = req.method;
+          let body = "";
+          req.on("data", (chunk) => (body += chunk.toString()));
+          req.on("end", () => {
+            capturedBody = body;
+            res.writeHead(200, { "content-type": "text/plain" });
+            res.end("ok");
+          });
         } else {
           res.writeHead(404);
           res.end();
@@ -119,5 +130,47 @@ describe("safeFetch", () => {
 
   it("throws UnsafeUrlError for non-http scheme", async () => {
     await expect(safeFetch("ftp://example.com")).rejects.toThrow(UnsafeUrlError);
+  });
+
+  it("changes method to GET and drops body on 302 redirect", async () => {
+    // Temporarily mock validateUrl
+    vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+      return [{ address: "127.0.0.1", family: 4 }];
+    });
+
+    try {
+      const response = await safeFetch(`${baseUrl}/redirect`, {
+        method: "POST",
+        body: "secret_data",
+      });
+      expect(response.status).toBe(200);
+      await response.body?.cancel();
+
+      expect(capturedMethod).toBe("GET");
+      expect(capturedBody).toBe("");
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("keeps method and body on 307 redirect", async () => {
+    // Temporarily mock validateUrl
+    vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+      return [{ address: "127.0.0.1", family: 4 }];
+    });
+
+    try {
+      const response = await safeFetch(`${baseUrl}/redirect-307`, {
+        method: "POST",
+        body: "secret_data",
+      });
+      expect(response.status).toBe(200);
+      await response.body?.cancel();
+
+      expect(capturedMethod).toBe("POST");
+      expect(capturedBody).toBe("secret_data");
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 });
