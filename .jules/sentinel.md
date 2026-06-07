@@ -15,3 +15,9 @@
 **Vulnerability:** The custom `safeFetch` implementation followed redirects manually but failed to enforce standard fetch redirect handling rules (changing POST to GET and dropping the request body for 301, 302, and 303 redirects).
 **Learning:** When building an HTTP client or wrapper that manually handles redirects, you cannot rely entirely on the underlying library if you use `redirect: "manual"`. The wrapper assumes responsibility for HTTP spec compliance, including preventing sensitive body leakage during redirect method changes without user consent.
 **Prevention:** Explicitly inspect HTTP redirect response codes against the active request method. Strip the body and body-related headers (Content-Type, Content-Length, etc.) and convert the method to GET when redirecting a POST on a 301/302, or any non-GET/HEAD method on a 303.
+
+## 2026-05-30 - [Credential Leakage in Error Messages]
+
+**Vulnerability:** URL credentials (username/password) were being leaked in error messages and error properties when validation failed (e.g., `UnsafeUrlError` and `UnsafeResolvedAddressError`).
+**Learning:** Error classes often store raw input for debugging, which can inadvertently expose sensitive data if the input contains credentials.
+**Prevention:** Sanitize raw inputs (like URLs) before storing them in error properties or including them in error messages.

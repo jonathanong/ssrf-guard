@@ -25,6 +25,22 @@ describe("validateUrl", () => {
     await expect(validateUrl("https://127.0.0.1/")).rejects.toThrow(UnsafeUrlError);
   });
 
+  it("sanitizes credentials in UnsafeUrlError", async () => {
+    const error = await validateUrl("https://admin:secretPass@127.0.0.1/").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(UnsafeUrlError);
+    expect((error as UnsafeUrlError).rawUrl).toBe("https://***:***@127.0.0.1/");
+    expect((error as UnsafeUrlError).message).not.toContain("secretPass");
+    expect((error as UnsafeUrlError).message).not.toContain("admin");
+
+    const malformedError = await validateUrl("//admin:secretPass@127.0.0.1/").catch(
+      (e: unknown) => e,
+    );
+    expect(malformedError).toBeInstanceOf(UnsafeUrlError);
+    expect((malformedError as UnsafeUrlError).rawUrl).toBe("//***:***@127.0.0.1/");
+    expect((malformedError as UnsafeUrlError).message).not.toContain("secretPass");
+    expect((malformedError as UnsafeUrlError).message).not.toContain("admin");
+  });
+
   it("throws UnsafeUrlError for blocked hostname", async () => {
     await expect(
       validateUrl("http://localhost/", {
