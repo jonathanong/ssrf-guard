@@ -66,11 +66,11 @@ describe("validateResolvedAddresses", () => {
   it("sanitizes credentials in UnsafeResolvedAddressError", () => {
     const addresses = [{ address: "10.0.0.1", family: 4 }];
     try {
-      validateResolvedAddresses("https://admin:secretPass@example.com", "example.com", addresses);
+      validateResolvedAddresses("//admin:secretPass@example.com", "example.com", addresses);
       expect.unreachable("Should have thrown");
     } catch (e) {
       expect(e).toBeInstanceOf(UnsafeResolvedAddressError);
-      expect((e as UnsafeResolvedAddressError).rawUrl).toBe("https://***:***@example.com/");
+      expect((e as UnsafeResolvedAddressError).rawUrl).toBe("//***:***@example.com");
       expect((e as UnsafeResolvedAddressError).message).not.toContain("secretPass");
       expect((e as UnsafeResolvedAddressError).message).not.toContain("admin");
     }

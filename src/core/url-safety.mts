@@ -27,7 +27,7 @@ export function sanitizeUrl(url: string): string {
     }
     return url;
   } catch {
-    return url.replace(/(:\/\/)(?:[^@/]+)@/, "$1***:***@");
+    return url.replace(/^((?:[a-z0-9+.-]+:)?(?:\/\/)?)([^\s/?#]+)@/i, "$1***:***@");
   }
 }
 
