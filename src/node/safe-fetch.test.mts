@@ -143,6 +143,9 @@ describe("safeFetch", () => {
       expectedMethod: string,
       expectedContentLength: string | undefined,
       expectedContentType: string | undefined,
+      expectedContentEncoding: string | undefined,
+      expectedContentLanguage: string | undefined,
+      expectedContentLocation: string | undefined,
     ) {
       vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
         return [{ address: "127.0.0.1", family: 4 }];
@@ -154,6 +157,9 @@ describe("safeFetch", () => {
           headers: {
             "content-type": "text/plain",
             "content-length": "5",
+            "content-encoding": "gzip",
+            "content-language": "en",
+            "content-location": "/payload",
             "x-custom": "value",
           },
         });
@@ -163,6 +169,9 @@ describe("safeFetch", () => {
         expect(capturedMethod).toBe(expectedMethod);
         expect(capturedHeaders["content-length"]).toBe(expectedContentLength);
         expect(capturedHeaders["content-type"]).toBe(expectedContentType);
+        expect(capturedHeaders["content-encoding"]).toBe(expectedContentEncoding);
+        expect(capturedHeaders["content-language"]).toBe(expectedContentLanguage);
+        expect(capturedHeaders["content-location"]).toBe(expectedContentLocation);
         expect(capturedHeaders["x-custom"]).toBe("value");
       } finally {
         vi.restoreAllMocks();
@@ -170,15 +179,57 @@ describe("safeFetch", () => {
     }
 
     it("changes POST to GET on 301 redirect and strips body headers", async () => {
-      await testRedirectMethod("/redirect-301", "GET", undefined, undefined);
+      await testRedirectMethod(
+        "/redirect-301",
+        "GET",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      );
     });
 
     it("changes POST to GET on 302 redirect and strips body headers", async () => {
-      await testRedirectMethod("/redirect", "GET", undefined, undefined);
+      await testRedirectMethod(
+        "/redirect",
+        "GET",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      );
     });
 
     it("changes POST to GET on 303 redirect and strips body headers", async () => {
-      await testRedirectMethod("/redirect-303", "GET", undefined, undefined);
+      await testRedirectMethod(
+        "/redirect-303",
+        "GET",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      );
+    });
+
+    it("retains GET method and headers on 303 redirect", async () => {
+      vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+        return [{ address: "127.0.0.1", family: 4 }];
+      });
+      try {
+        const response = await safeFetch(`${baseUrl}/redirect-303`, {
+          headers: { "content-type": "text/plain" },
+        });
+        expect(response.status).toBe(200);
+        await response.body?.cancel();
+
+        expect(capturedMethod).toBe("GET");
+        expect(capturedHeaders["content-type"]).toBe("text/plain");
+      } finally {
+        vi.restoreAllMocks();
+      }
     });
 
     it("retains HEAD method on 303 redirect", async () => {
@@ -188,22 +239,40 @@ describe("safeFetch", () => {
       try {
         const response = await safeFetch(`${baseUrl}/redirect-303`, {
           method: "HEAD",
+          headers: { "content-type": "text/plain" },
         });
         expect(response.status).toBe(200);
         await response.body?.cancel();
 
         expect(capturedMethod).toBe("HEAD");
+        expect(capturedHeaders["content-type"]).toBe("text/plain");
       } finally {
         vi.restoreAllMocks();
       }
     });
 
     it("retains POST method on 307 redirect", async () => {
-      await testRedirectMethod("/redirect-307", "POST", "5", "text/plain");
+      await testRedirectMethod(
+        "/redirect-307",
+        "POST",
+        "5",
+        "text/plain",
+        "gzip",
+        "en",
+        "/payload",
+      );
     });
 
     it("retains POST method on 308 redirect", async () => {
-      await testRedirectMethod("/redirect-308", "POST", "5", "text/plain");
+      await testRedirectMethod(
+        "/redirect-308",
+        "POST",
+        "5",
+        "text/plain",
+        "gzip",
+        "en",
+        "/payload",
+      );
     });
   });
 });

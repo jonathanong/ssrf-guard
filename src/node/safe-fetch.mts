@@ -98,18 +98,15 @@ export async function safeFetch(
       response.body?.cancel().catch(() => {});
       const nextUrl = getRedirectUrl(response, currentUrl.href);
 
-      // Handle method changes on 301/302/303 redirects
-      if (
-        response.status === 303 ||
-        ((response.status === 301 || response.status === 302) &&
-          currentFetchInit.method?.toUpperCase() === "POST")
-      ) {
+      // Handle method changes on 301/302/303 redirects.
+      const currentMethod = currentFetchInit.method?.toUpperCase() ?? "GET";
+      const shouldRewriteToGet =
+        ((response.status === 301 || response.status === 302) && currentMethod === "POST") ||
+        (response.status === 303 && currentMethod !== "GET" && currentMethod !== "HEAD");
+      if (shouldRewriteToGet) {
         currentFetchInit = {
           ...currentFetchInit,
-          method:
-            response.status === 303 && currentFetchInit.method?.toUpperCase() === "HEAD"
-              ? "HEAD"
-              : "GET",
+          method: "GET",
         };
         if (currentFetchInit.body !== undefined) {
           const { body: _body, ...restInit } = currentFetchInit;
@@ -117,8 +114,16 @@ export async function safeFetch(
         }
         if (currentFetchInit.headers) {
           const headers = new Headers(currentFetchInit.headers);
-          headers.delete("content-length");
-          headers.delete("content-type");
+          for (const headerName of [
+            "content-length",
+            "content-type",
+            "content-encoding",
+            "transfer-encoding",
+            "content-language",
+            "content-location",
+          ]) {
+            headers.delete(headerName);
+          }
           currentFetchInit = { ...currentFetchInit, headers: headers as HeadersInit };
         }
       }
