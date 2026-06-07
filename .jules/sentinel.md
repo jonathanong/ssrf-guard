@@ -10,8 +10,8 @@
 **Learning:** Hardcoded, specific regexes for traditional private networks (10.x/172.16.x/192.168.x) were inadequate for defense-in-depth against cloud-specific and test-net SSRF attacks.
 **Prevention:** Extend validation definitions with known non-routable, multicast, CGNAT, and broadcast IP ranges as part of `isPrivateIp`. Ensure unit tests actively assert unroutable metadata IPs block properly.
 
-## 2024-06-02 - Information Leak in Fetch Redirects
+## 2026-06-02 - Information Leak in Fetch Redirects
 
-**Vulnerability:** When handling HTTP redirects manually, `safeFetch` was forwarding original HTTP method and body to redirect targets on 303 (and 301/302 POST) redirects.
-**Learning:** Manual redirect handling needs to correctly implement the Fetch specification rules for 303/301/302 redirects, which involves downgrading POST methods to GET and stripping the body. Otherwise, sensitive request bodies can be unintentionally forwarded.
+**Vulnerability:** When handling HTTP redirects manually, `safeFetch` was forwarding original HTTP method and body to redirect targets on 303 (and 301/302 non-GET/non-HEAD) redirects.
+**Learning:** Manual redirect handling needs to correctly implement the Fetch specification rules for 303/301/302 redirects, which involves preserving GET/HEAD requests but downgrading other methods to GET and stripping the body. Otherwise, sensitive request bodies can be unintentionally forwarded.
 **Prevention:** When manually implementing fetch wrappers or following redirects with `redirect: "manual"`, always verify that request bodies and methods are correctly adjusted according to HTTP specs (e.g., dropping body and changing to GET for 303 redirects) to avoid leaking data to unintended endpoints.

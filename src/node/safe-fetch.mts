@@ -45,6 +45,37 @@ function getRedirectUrl(response: UndiciResponse, currentUrl: string): URL {
   }
 }
 
+function getRequestMethod(fetchInit: Omit<RequestInit, "signal">): string {
+  if (fetchInit.method) return fetchInit.method.toUpperCase();
+  return fetchInit.body === undefined || fetchInit.body === null ? "GET" : "POST";
+}
+
+function stripBodyHeaders(headers: HeadersInit | undefined): HeadersInit | undefined {
+  if (!headers) return undefined;
+  const nextHeaders = new Headers(headers);
+  nextHeaders.delete("content-length");
+  nextHeaders.delete("content-type");
+  return nextHeaders as HeadersInit;
+}
+
+function normalizeRedirectRequest(
+  fetchInit: Omit<RequestInit, "signal">,
+  status: number,
+): Omit<RequestInit, "signal"> {
+  const method = getRequestMethod(fetchInit);
+  const shouldDropBody =
+    (status === 303 && method !== "GET" && method !== "HEAD") ||
+    ((status === 301 || status === 302) && method !== "GET" && method !== "HEAD");
+
+  if (!shouldDropBody) return fetchInit;
+
+  const nextFetchInit = { ...fetchInit, method: "GET" };
+  delete nextFetchInit.body;
+  const headers = stripBodyHeaders(nextFetchInit.headers);
+  if (headers) nextFetchInit.headers = headers;
+  return nextFetchInit;
+}
+
 export async function safeFetch(
   initialUrl: string | URL,
   options?: SafeFetchOptions,
@@ -98,20 +129,7 @@ export async function safeFetch(
       response.body?.cancel().catch(() => {});
       const nextUrl = getRedirectUrl(response, currentUrl.href);
 
-      const method = (currentFetchInit.method ?? "GET").toUpperCase();
-      if (
-        response.status === 303 ||
-        ((response.status === 301 || response.status === 302) && method === "POST")
-      ) {
-        currentFetchInit = { ...currentFetchInit, method: "GET" };
-        delete currentFetchInit.body;
-        if (currentFetchInit.headers) {
-          const headers = new Headers(currentFetchInit.headers);
-          headers.delete("content-length");
-          headers.delete("content-type");
-          currentFetchInit.headers = headers as HeadersInit;
-        }
-      }
+      currentFetchInit = normalizeRedirectRequest(currentFetchInit, response.status);
 
       // Strip sensitive headers on cross-origin redirect
       if (nextUrl.origin !== currentUrl.origin && currentFetchInit.headers) {

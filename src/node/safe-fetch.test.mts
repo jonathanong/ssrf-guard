@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- integration tests share one local HTTP server */
 import http from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, it, expect, vi } from "vitest";
 import { safeFetch } from "./safe-fetch.mjs";
@@ -24,6 +25,12 @@ beforeAll(
           res.end();
         } else if (req.url === "/redirect-loop") {
           res.writeHead(302, { location: `${baseUrl}/redirect-loop` });
+          res.end();
+        } else if (req.url === "/redirect-301") {
+          res.writeHead(301, { location: `${baseUrl}/ok` });
+          res.end();
+        } else if (req.url === "/redirect-302") {
+          res.writeHead(302, { location: `${baseUrl}/ok` });
           res.end();
         } else if (req.url === "/redirect-303") {
           res.writeHead(303, { location: `${baseUrl}/ok` });
@@ -119,6 +126,108 @@ describe("safeFetch", () => {
       expect(capturedMethod).toBe("GET");
       expect(capturedHeaders["content-type"]).toBeUndefined();
       expect(capturedHeaders["content-length"]).toBeUndefined();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("changes POST to GET and drops body on 301 redirect", async () => {
+    vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+      return [{ address: "127.0.0.1", family: 4 }];
+    });
+
+    try {
+      const response = await safeFetch(`${baseUrl}/redirect-301`, {
+        method: "POST",
+        body: "sensitive_data",
+        headers: { "content-type": "text/plain", "content-length": "14" },
+      });
+      expect(response.status).toBe(200);
+      await response.body?.cancel();
+
+      expect(capturedMethod).toBe("GET");
+      expect(capturedHeaders["content-type"]).toBeUndefined();
+      expect(capturedHeaders["content-length"]).toBeUndefined();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("changes POST to GET and drops body on 302 redirect", async () => {
+    vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+      return [{ address: "127.0.0.1", family: 4 }];
+    });
+
+    try {
+      const response = await safeFetch(`${baseUrl}/redirect-302`, {
+        method: "POST",
+        body: "sensitive_data",
+        headers: { "content-type": "text/plain", "content-length": "14" },
+      });
+      expect(response.status).toBe(200);
+      await response.body?.cancel();
+
+      expect(capturedMethod).toBe("GET");
+      expect(capturedHeaders["content-type"]).toBeUndefined();
+      expect(capturedHeaders["content-length"]).toBeUndefined();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("changes PUT to GET and drops body on 301 redirect", async () => {
+    vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+      return [{ address: "127.0.0.1", family: 4 }];
+    });
+
+    try {
+      const response = await safeFetch(`${baseUrl}/redirect-301`, {
+        method: "PUT",
+        body: "sensitive_data",
+        headers: { "content-type": "text/plain", "content-length": "14" },
+      });
+      expect(response.status).toBe(200);
+      await response.body?.cancel();
+
+      expect(capturedMethod).toBe("GET");
+      expect(capturedHeaders["content-type"]).toBeUndefined();
+      expect(capturedHeaders["content-length"]).toBeUndefined();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("preserves GET on 301 redirect", async () => {
+    vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+      return [{ address: "127.0.0.1", family: 4 }];
+    });
+
+    try {
+      const response = await safeFetch(`${baseUrl}/redirect-301`, {
+        method: "GET",
+      });
+      expect(response.status).toBe(200);
+      await response.body?.cancel();
+
+      expect(capturedMethod).toBe("GET");
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("preserves HEAD on 303 redirect", async () => {
+    vi.spyOn(validateUrlMod, "validateUrl").mockImplementation(async () => {
+      return [{ address: "127.0.0.1", family: 4 }];
+    });
+
+    try {
+      const response = await safeFetch(`${baseUrl}/redirect-303`, {
+        method: "HEAD",
+      });
+      expect(response.status).toBe(200);
+      await response.body?.cancel();
+
+      expect(capturedMethod).toBe("HEAD");
     } finally {
       vi.restoreAllMocks();
     }
