@@ -113,15 +113,21 @@ describe("isPrivateIp", () => {
   });
 
   describe("IPv6 addresses", () => {
-    it("returns true for ::1 loopback", () => {
-      expectPrivateIps(["::1", "[::1]"]);
+    it("returns true for ::1 loopback and :: unspecified forms", () => {
+      expectPrivateIps([
+        "::1",
+        "[::1]",
+        "0:0:0:0:0:0:0:1",
+        "0000:0000:0000:0000:0000:0000:0000:0001",
+        "0::1",
+        "0000::1",
+        "::0001",
+        "::0000:1",
+      ]);
+      expectPrivateIps(["::", "[::]", "0:0:0:0:0:0:0:0", "0000::0000", "0::0"]);
     });
 
-    it("returns true for :: unspecified", () => {
-      expectPrivateIps(["::", "[::]"]);
-    });
-
-    it("returns true for ULA fc00::/7 range", () => {
+    it("returns true for ULA fc00::/7 range and bypasses", () => {
       expectPrivateIps(["fc00::1", "fd00::1"]);
     });
 
@@ -139,8 +145,14 @@ describe("isPrivateIp", () => {
   });
 
   describe("IPv4-mapped IPv6 addresses", () => {
-    it("returns true for ::ffff:127.0.0.1 (loopback mapped)", () => {
-      expect(isPrivateIp("::ffff:127.0.0.1")).toBe(true);
+    it("returns true for loopback mapped including uncompressed bypass forms", () => {
+      expectPrivateIps([
+        "0:0:0:0:0:ffff:127.0.0.1",
+        "0000:0000:0000:0000:0000:ffff:127.0.0.1",
+        "0::ffff:127.0.0.1",
+        "::FFFF:127.0.0.1",
+        "::ffff:127.0.0.1",
+      ]);
     });
 
     it("returns true for ::ffff:10.0.0.1 (private mapped)", () => {
