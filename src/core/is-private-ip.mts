@@ -117,5 +117,6 @@ export function isPrivateIp(ip: string): boolean {
     return ipv4 ? isPrivateCanonicalIpv4(ipv4) : false;
   }
   const normalizedIpv4 = normalizeIpv4Address(ip);
-  return isPrivateCanonicalIpv4(normalizedIpv4 ?? ip);
+  if (normalizedIpv4) return isPrivateCanonicalIpv4(normalizedIpv4);
+  return false;
 }
