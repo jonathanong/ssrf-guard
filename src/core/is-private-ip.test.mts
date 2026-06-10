@@ -113,15 +113,24 @@ describe("isPrivateIp", () => {
   });
 
   describe("IPv6 addresses", () => {
-    it("returns true for ::1 loopback", () => {
-      expectPrivateIps(["::1", "[::1]"]);
+    it("returns true for ::1 loopback and uncompressed forms", () => {
+      expectPrivateIps([
+        "::1",
+        "[::1]",
+        "0:0:0:0:0:0:0:1",
+        "0000:0000:0000:0000:0000:0000:0000:0001",
+        "0::1",
+        "0000::1",
+        "::0001",
+        "::0000:1",
+      ]);
     });
 
-    it("returns true for :: unspecified", () => {
-      expectPrivateIps(["::", "[::]"]);
+    it("returns true for :: unspecified and uncompressed forms", () => {
+      expectPrivateIps(["::", "[::]", "0:0:0:0:0:0:0:0", "0000::0000", "0::0"]);
     });
 
-    it("returns true for ULA fc00::/7 range", () => {
+    it("returns true for ULA fc00::/7 range and bypasses", () => {
       expectPrivateIps(["fc00::1", "fd00::1"]);
     });
 
@@ -139,21 +148,26 @@ describe("isPrivateIp", () => {
   });
 
   describe("IPv4-mapped IPv6 addresses", () => {
-    it("returns true for ::ffff:127.0.0.1 (loopback mapped)", () => {
-      expect(isPrivateIp("::ffff:127.0.0.1")).toBe(true);
-    });
-
-    it("returns true for ::ffff:10.0.0.1 (private mapped)", () => {
-      expect(isPrivateIp("::ffff:10.0.0.1")).toBe(true);
+    it("returns true for uncompressed mapped bypass forms", () => {
+      expectPrivateIps([
+        "0:0:0:0:0:ffff:127.0.0.1",
+        "0000:0000:0000:0000:0000:ffff:127.0.0.1",
+        "0::ffff:127.0.0.1",
+        "::FFFF:127.0.0.1",
+      ]);
     });
 
     it("returns true for ::ffff: mapped blocked ranges", () => {
-      expect(isPrivateIp("::ffff:100.64.0.1")).toBe(true); // CGNAT
-      expect(isPrivateIp("::ffff:100.100.100.200")).toBe(true); // CGNAT-style metadata address
-      expect(isPrivateIp("::ffff:192.0.0.170")).toBe(true); // TEST-NET-3 / IETF assignment
-      expect(isPrivateIp("::ffff:192.88.99.1")).toBe(true); // 6to4 Relay Anycast
-      expect(isPrivateIp("::ffff:198.51.100.1")).toBe(true); // TEST-NET-2
-      expect(isPrivateIp("::ffff:240.0.0.1")).toBe(true); // Reserved
+      expectPrivateIps([
+        "::ffff:127.0.0.1",
+        "::ffff:10.0.0.1",
+        "::ffff:100.64.0.1",
+        "::ffff:100.100.100.200",
+        "::ffff:192.0.0.170",
+        "::ffff:192.88.99.1",
+        "::ffff:198.51.100.1",
+        "::ffff:240.0.0.1",
+      ]);
     });
 
     it("returns true for hex-group form (Node.js URL normalization)", () => {
@@ -176,24 +190,8 @@ describe("isPrivateIp", () => {
   });
 
   describe("normalizeIpv4Address edge cases", () => {
-    it("returns false for 5-component notation (too many octets)", () => {
-      expect(isPrivateIp("1.2.3.4.5")).toBe(false);
-    });
-
-    it("returns false for empty-part notation (double dot) with non-private prefix", () => {
-      expect(isPrivateIp("1..0.0")).toBe(false);
-    });
-
-    it("returns false for leading-octet-out-of-range notation", () => {
-      expect(isPrivateIp("256.0.0.1")).toBe(false);
-    });
-
-    it("returns false for last-octet-out-of-range notation", () => {
-      expect(isPrivateIp("1.1.1.256")).toBe(false);
-    });
-
-    it("returns false for decimal integer exceeding 32-bit range", () => {
-      expect(isPrivateIp("9999999999")).toBe(false);
+    it("returns false for invalid/out-of-range forms", () => {
+      expectPublicIps(["1.2.3.4.5", "1..0.0", "256.0.0.1", "1.1.1.256", "9999999999"]);
     });
   });
 });

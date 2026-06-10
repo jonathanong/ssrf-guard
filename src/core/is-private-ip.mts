@@ -19,8 +19,8 @@ const V4_BLOCKED_RANGES = [
 
 // Private/blocked IPv6 ranges (non-mapped)
 const V6_BLOCKED_RANGES = [
-  /^\[?::1\]?$/, // Loopback
-  /^\[?::\]?$/, // Unspecified address
+  /^\[?(?:0*:)*0*1\]?$/i, // Loopback (::1, 0:0:0:0:0:0:0:1)
+  /^\[?(?:0*:)+0*\]?$/i, // Unspecified address (::, 0:0:0:0:0:0:0:0)
   /^\[?f[cd][0-9a-f]{2}:/i, // ULA fc00::/7 (covers fc** and fd**)
   /^\[?fe[89ab][0-9a-f]:/i, // Link-local fe80::/10 (covers fe80–febf)
   /^\[?ff[0-9a-f]{2}:/i, // Multicast ff00::/8
@@ -105,7 +105,7 @@ function isPrivateCanonicalIpv4(ip: string): boolean {
 
 export function isPrivateIp(ip: string): boolean {
   if (V6_BLOCKED_RANGES.some((re) => re.test(ip))) return true;
-  const ipv4MappedMatch = ip.match(/^\[?::ffff:([^\]]+)\]?$/i);
+  const ipv4MappedMatch = ip.match(/^\[?(?:0*:)*?(?:ffff|FFFF):([^\]]+)\]?$/i);
   if (ipv4MappedMatch) {
     const ipv4 = resolveIpv4MappedEmbedded(ipv4MappedMatch[1]);
     return ipv4 ? isPrivateCanonicalIpv4(ipv4) : false;
