@@ -20,7 +20,13 @@ const DEFAULT_MAX_REDIRECTS = 10;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 // Security: headers stripped on cross-origin redirects
-const SENSITIVE_HEADERS = new Set(["authorization", "cookie", "cookie2", "proxy-authorization"]);
+const SENSITIVE_HEADERS = new Set([
+  "authorization",
+  "cookie",
+  "cookie2",
+  "host",
+  "proxy-authorization",
+]);
 const REQUEST_BODY_HEADERS = new Set([
   "content-disposition",
   "content-encoding",
