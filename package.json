@@ -29,13 +29,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "undici": "^8.4.0"
+    "undici": "^8.4.1"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
+    "@types/node": "^25.9.3",
     "@vitest/coverage-v8": "^4.1.8",
-    "oxfmt": "^0.53.0",
-    "oxlint": "^1.68.0",
+    "oxfmt": "^0.54.0",
+    "oxlint": "^1.69.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   },
