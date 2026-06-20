@@ -29,7 +29,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "undici": "^8.4.0"
+    "undici": "^8.5.0"
   },
   "devDependencies": {
     "@types/node": "^25.9.2",
