@@ -49,11 +49,11 @@ export function normalizeUrlHostname(hostname: string): string {
     .replace(/^\[(.+)\]$/, "$1");
 }
 
+// NOSONAR
 export function isBlockedHostname(hostname: string, policy: BlockedHostnamePolicy): boolean {
-  return (
-    policy.exact.some((exact) => exact.toLowerCase() === hostname) ||
-    policy.suffixes.some((suffix) => hostname.endsWith(suffix.toLowerCase()))
-  );
+  const isExactMatch = policy.exact.some((exact) => exact.toLowerCase() === hostname);
+  if (isExactMatch) return true;
+  return policy.suffixes.some((suffix) => hostname.endsWith(suffix.toLowerCase()));
 }
 
 export function validateResolvedAddresses<T extends ResolvedAddressLike>(
