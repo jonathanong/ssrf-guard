@@ -1,4 +1,5 @@
 ## 2025-02-14 - [Case-sensitive Policy Bypass]
+
 **Vulnerability:** The blocklist logic (`isBlockedHostname`) performed strict string matching against exact matches and suffixes without normalizing case. Because `URL.hostname` is always lowercased, a user-configured blocklist containing mixed-case hostnames (e.g., `["LocalHost"]`) would fail to block malicious requests directed at the matching lowercased hostname (e.g., `localhost`).
 **Learning:** Security blocklist evaluations must always account for normalization boundaries. Even if the incoming data (`hostname`) is normalized, the user-provided policy must also be normalized to effectively match.
 **Prevention:** Lowercase user-provided configurations dynamically during comparisons or normalize them upfront at the instantiation of the policy.
