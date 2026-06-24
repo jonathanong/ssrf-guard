@@ -51,7 +51,8 @@ export function normalizeUrlHostname(hostname: string): string {
 
 export function isBlockedHostname(hostname: string, policy: BlockedHostnamePolicy): boolean {
   return (
-    policy.exact.includes(hostname) || policy.suffixes.some((suffix) => hostname.endsWith(suffix))
+    policy.exact.some((exact) => exact.toLowerCase() === hostname) ||
+    policy.suffixes.some((suffix) => hostname.endsWith(suffix.toLowerCase()))
   );
 }
 

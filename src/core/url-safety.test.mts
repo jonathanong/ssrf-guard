@@ -38,9 +38,21 @@ describe("isBlockedHostname", () => {
     expect(isBlockedHostname("localhost", POLICY)).toBe(true);
   });
 
+  it("blocks exact matches case-insensitively", () => {
+    const policyWithUpper: BlockedHostnamePolicy = { exact: ["LocalHost"], suffixes: [] };
+    // hostname is normalized to lowercase by validateUrl before being passed to isBlockedHostname
+    expect(isBlockedHostname("localhost", policyWithUpper)).toBe(true);
+  });
+
   it("blocks suffix matches", () => {
     expect(isBlockedHostname("foo.local", POLICY)).toBe(true);
     expect(isBlockedHostname("bar.baz.local", POLICY)).toBe(true);
+  });
+
+  it("blocks suffix matches case-insensitively", () => {
+    const policyWithUpper: BlockedHostnamePolicy = { exact: [], suffixes: [".Local"] };
+    // hostname is normalized to lowercase by validateUrl before being passed to isBlockedHostname
+    expect(isBlockedHostname("foo.local", policyWithUpper)).toBe(true);
   });
 
   it("does not block non-matching hostnames", () => {
