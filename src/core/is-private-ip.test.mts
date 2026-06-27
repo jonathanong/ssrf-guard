@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines */
 import { describe, it, expect } from "vitest";
 import { isPrivateIp } from "./is-private-ip.mjs";
 
@@ -114,6 +115,7 @@ describe("isPrivateIp", () => {
 
   describe("IPv6 addresses", () => {
     it("returns true for ::1 loopback and uncompressed forms", () => {
+      expectPrivateIps(["::1%eth0", "[::1%eth0]"]);
       expectPrivateIps([
         "::1",
         "[::1]",
@@ -135,6 +137,7 @@ describe("isPrivateIp", () => {
     });
 
     it("returns true for link-local fe80::/10 range", () => {
+      expectPrivateIps(["fe80::1%lo0", "[fe80::1%lo0]"]);
       expectPrivateIps(["fe80::1", "fe90::1", "fea0::1", "feb0::1"]);
     });
 
@@ -143,6 +146,7 @@ describe("isPrivateIp", () => {
     });
 
     it("returns false for public IPv6 addresses", () => {
+      expectPublicIps(["2606:4700:4700::1111%eth0", "[2001:4860:4860::8888%eth0]"]);
       expectPublicIps(["2606:4700:4700::1111", "2001:4860:4860::8888"]);
     });
   });

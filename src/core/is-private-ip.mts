@@ -104,6 +104,10 @@ function isPrivateCanonicalIpv4(ip: string): boolean {
 }
 
 export function isPrivateIp(ip: string): boolean {
+  const percentIndex = ip.indexOf("%");
+  if (percentIndex !== -1) {
+    ip = ip.endsWith("]") ? ip.slice(0, percentIndex) + "]" : ip.slice(0, percentIndex);
+  }
   if (V6_BLOCKED_RANGES.some((re) => re.test(ip))) return true;
   const ipv4MappedMatch = ip.match(/^\[?(?:0*:){0,6}(?:ffff|FFFF):([^\]]+)\]?$/i);
   if (ipv4MappedMatch) {

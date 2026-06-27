@@ -27,3 +27,7 @@
 **Vulnerability:** The `isPrivateIp` function in `src/core/is-private-ip.mts` failed to catch uncompressed, partially compressed, and IPv4-mapped bypass representations of IPv6 loopback (`::1`) and unspecified (`::`) addresses (e.g., `0:0:0:0:0:0:0:1` or `0:0:0:0:0:ffff:127.0.0.1`).
 **Learning:** The existing regexes (`/^\[?::1\]?$/` and `/^\[?::\]?$/`) were too strict and assumed IPv6 addresses would always be fully compressed, which is not guaranteed when parsing user input or DNS responses.
 **Prevention:** Always account for all valid representations of IPv6 addresses (uncompressed, partially compressed, leading zeros) when writing validation regexes, or use a robust IPv6 parsing library instead of simple string matching.
+## 2025-02-14 - SSRF Bypass via IPv6 Zone Index
+**Vulnerability:** Private IPv6 addresses with a zone index (e.g. `::1%eth0` or `[fe80::1%lo0]`) were not identified as private because regex matching failed, allowing SSRF bypass since `node:net` and `node:dns` tolerate the zone identifier and still connect locally.
+**Learning:** Security validations on IP addresses often fail to account for IPv6 zone indices, which alter the string footprint while still resolving to localhost/private networks.
+**Prevention:** Always strip IPv6 zone indices (the `%` and subsequent characters up to a closing `]` or string end) before validating IPv6 addresses against private IP regexes.
