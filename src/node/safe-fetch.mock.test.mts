@@ -43,6 +43,31 @@ describe("safeFetch (mocked)", () => {
     expect(result.status).toBe(200);
   });
 
+  it("snapshots URL objects before asynchronous validation", async () => {
+    const res = makeResponse(200);
+    let resolveValidation: (addresses: typeof PUBLIC_ADDRESSES) => void = () => {};
+    vi.mocked(validateUrl).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveValidation = resolve;
+      }) as never,
+    );
+    vi.mocked(undiciFetch).mockResolvedValue(res as never);
+
+    const url = new URL("https://example.com/original");
+    const responsePromise = safeFetch(url);
+    await vi.waitFor(() => expect(vi.mocked(validateUrl)).toHaveBeenCalled());
+    url.hostname = "changed.example";
+    url.pathname = "/changed";
+    resolveValidation(PUBLIC_ADDRESSES);
+
+    await expect(responsePromise).resolves.toBe(res);
+    expect(vi.mocked(validateUrl)).toHaveBeenCalledWith("https://example.com/original", {});
+    expect(vi.mocked(undiciFetch)).toHaveBeenCalledWith(
+      "https://example.com/original",
+      expect.objectContaining({ redirect: "manual" }),
+    );
+  });
+
   it("throws UnsafeUrlError for invalid initial URLs", async () => {
     await expect(safeFetch("not a url")).rejects.toMatchObject({
       reason: "invalid URL",

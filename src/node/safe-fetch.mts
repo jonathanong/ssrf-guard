@@ -58,7 +58,7 @@ function getRedirectUrl(response: UndiciResponse, currentUrl: string): URL {
 }
 
 function parseInitialUrl(initialUrl: string | URL): URL {
-  if (initialUrl instanceof URL) return initialUrl;
+  if (initialUrl instanceof URL) return new URL(initialUrl.href);
   const url = URL.parse(initialUrl);
   if (url === null) throw new UnsafeUrlError(initialUrl, "invalid URL");
   return url;
