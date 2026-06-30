@@ -39,6 +39,9 @@
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   },
+  "overrides": {
+    "nanoid": "3.3.14"
+  },
   "engines": {
     "node": ">=24"
   }
