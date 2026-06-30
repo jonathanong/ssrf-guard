@@ -84,12 +84,16 @@ jobs:
               core.info('Approval already present');
             } else {
               core.info('Approving PR');
-              await github.rest.pulls.createReview({
-                owner,
-                repo,
-                pull_number: pr.number,
-                event: 'APPROVE',
-              });
+              try {
+                await github.rest.pulls.createReview({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  event: 'APPROVE',
+                });
+              } catch (err) {
+                core.warning(`Could not approve PR: ${err.message}`);
+              }
             }
 
             const { data: freshPr } = await github.rest.pulls.get({
