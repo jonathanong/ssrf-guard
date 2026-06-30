@@ -103,7 +103,13 @@ function isPrivateCanonicalIpv4(ip: string): boolean {
   return V4_BLOCKED_RANGES.some((re) => re.test(ip));
 }
 
+function stripIpv6ZoneIndex(ip: string): string {
+  if (!ip.includes("%")) return ip;
+  return ip.replace(/%[^\]]*/, "");
+}
+
 export function isPrivateIp(ip: string): boolean {
+  ip = stripIpv6ZoneIndex(ip);
   if (V6_BLOCKED_RANGES.some((re) => re.test(ip))) return true;
   const ipv4MappedMatch = ip.match(/^\[?(?:0*:){0,6}(?:ffff|FFFF):([^\]]+)\]?$/i);
   if (ipv4MappedMatch) {
