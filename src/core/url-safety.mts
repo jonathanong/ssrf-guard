@@ -43,10 +43,14 @@ export class UnsafeResolvedAddressError extends Error {
 }
 
 export function normalizeUrlHostname(hostname: string): string {
-  return hostname
-    .toLowerCase()
-    .replace(/\.+$/, "")
-    .replace(/^\[(.+)\]$/, "$1");
+  let normalized = hostname.toLowerCase();
+  while (normalized.endsWith(".")) {
+    normalized = normalized.slice(0, -1);
+  }
+  if (normalized.startsWith("[") && normalized.endsWith("]")) {
+    return normalized.slice(1, -1);
+  }
+  return normalized;
 }
 
 // NOSONAR
