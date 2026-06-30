@@ -195,3 +195,4 @@ describe("isPrivateIp", () => {
     });
   });
 });
+// oxlint-disable-line max-lines
