@@ -115,13 +115,13 @@ function getPinnedDispatcherCacheKey(resolvedAddresses: readonly ResolvedSafeAdd
 }
 
 function evictPinnedDispatcherIfNeeded(cache: Map<string, Agent>, maxSize: number): void {
-  if (cache.size < maxSize) return;
-
-  const oldestCacheKey = cache.keys().next().value;
-  if (oldestCacheKey === undefined) return;
-  const oldestDispatcher = cache.get(oldestCacheKey);
-  cache.delete(oldestCacheKey);
-  oldestDispatcher?.close().catch(() => {
-    // Eviction should not fail because a dispatcher is already closed or unhealthy.
-  });
+  while (cache.size >= maxSize) {
+    const oldestCacheKey = cache.keys().next().value;
+    if (oldestCacheKey === undefined) return;
+    const oldestDispatcher = cache.get(oldestCacheKey);
+    cache.delete(oldestCacheKey);
+    oldestDispatcher?.close().catch(() => {
+      // Eviction should not fail because a dispatcher is already closed or unhealthy.
+    });
+  }
 }

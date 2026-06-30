@@ -1,6 +1,6 @@
 import dns from "node:dns";
 import net from "node:net";
-import type { LookupAddress } from "node:dns";
+import type { LookupAddress, LookupAllOptions } from "node:dns";
 import {
   isPrivateIp,
   isBlockedHostname,
@@ -21,6 +21,7 @@ export interface ValidateUrlOptions {
 }
 
 const EMPTY_POLICY: BlockedHostnamePolicy = { exact: [], suffixes: [] };
+type LookupAllOptionsWithSignal = LookupAllOptions & { signal?: AbortSignal };
 
 export async function validateUrl(
   rawUrl: string,
@@ -67,8 +68,14 @@ function lookupHostname(
   hostname: string,
   options: ValidateUrlOptions | undefined,
 ): Promise<LookupAddress[]> {
-  const lookupPromise = dns.promises.lookup(hostname, { all: true });
   const { signal, timeoutMs } = options ?? {};
+  if (signal?.aborted) {
+    return Promise.reject(createAbortErrorForSignal(hostname, signal));
+  }
+
+  const lookupOptions: LookupAllOptionsWithSignal =
+    signal === undefined ? { all: true } : { all: true, signal };
+  const lookupPromise = dns.promises.lookup(hostname, lookupOptions) as Promise<LookupAddress[]>;
 
   if (signal === undefined && timeoutMs === undefined) return lookupPromise;
 
@@ -88,14 +95,7 @@ function lookupHostname(
       callback(value);
     };
 
-    const onAbort = (): void => {
-      settle(reject, createAbortError(`DNS lookup for ${hostname} aborted`));
-    };
-
-    if (signal?.aborted) {
-      onAbort();
-      return;
-    }
+    const onAbort = (): void => settle(reject, createAbortErrorForSignal(hostname, signal));
 
     signal?.addEventListener("abort", onAbort, { once: true });
 
@@ -119,8 +119,19 @@ function lookupHostname(
   });
 }
 
-function createAbortError(message: string): Error {
-  const error = new Error(message);
+function createAbortErrorForSignal(hostname: string, signal: AbortSignal | undefined): Error {
+  if (signal?.reason instanceof Error && !isDefaultAbortReason(signal.reason)) {
+    return signal.reason;
+  }
+  return createAbortError(`DNS lookup for ${hostname} aborted`, signal?.reason);
+}
+
+function isDefaultAbortReason(reason: Error): boolean {
+  return reason.name === "AbortError" && reason.message === "This operation was aborted";
+}
+
+function createAbortError(message: string, cause?: unknown): Error {
+  const error = cause === undefined ? new Error(message) : new Error(message, { cause });
   error.name = "AbortError";
   return error;
 }

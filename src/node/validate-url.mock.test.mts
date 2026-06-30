@@ -75,6 +75,7 @@ describe("validateUrl (mocked DNS)", () => {
       name: "AbortError",
       message: "DNS lookup for aborted.example.com aborted",
     });
+    expect(vi.mocked(dns.promises.lookup)).not.toHaveBeenCalled();
   });
 
   it("throws AbortError when signal aborts during DNS lookup", async () => {
@@ -89,6 +90,39 @@ describe("validateUrl (mocked DNS)", () => {
     await expect(validation).rejects.toMatchObject({
       name: "AbortError",
       message: "DNS lookup for abort-later.example.com aborted",
+    });
+    expect(vi.mocked(dns.promises.lookup)).toHaveBeenCalledWith("abort-later.example.com", {
+      all: true,
+      signal: controller.signal,
+    });
+  });
+
+  it("preserves explicit AbortSignal Error reasons", async () => {
+    vi.mocked(dns.promises.lookup).mockReturnValue(new Promise(() => {}) as never);
+    const controller = new AbortController();
+    const reason = new Error("custom abort reason");
+
+    const validation = validateUrl("https://abort-reason.example.com/", {
+      signal: controller.signal,
+    });
+    controller.abort(reason);
+
+    await expect(validation).rejects.toBe(reason);
+  });
+
+  it("attaches non-Error AbortSignal reasons as cause", async () => {
+    vi.mocked(dns.promises.lookup).mockReturnValue(new Promise(() => {}) as never);
+    const controller = new AbortController();
+
+    const validation = validateUrl("https://abort-cause.example.com/", {
+      signal: controller.signal,
+    });
+    controller.abort("custom cause");
+
+    await expect(validation).rejects.toMatchObject({
+      name: "AbortError",
+      message: "DNS lookup for abort-cause.example.com aborted",
+      cause: "custom cause",
     });
   });
 });

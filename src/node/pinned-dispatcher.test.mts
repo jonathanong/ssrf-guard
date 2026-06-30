@@ -77,6 +77,17 @@ describe("createPinnedDispatcherCache", () => {
     expect(cache.size).toBe(2);
   });
 
+  it("keeps the cache at maxSize when maxSize is one", () => {
+    const cache = createPinnedDispatcherCache({ maxSize: 1 });
+    const evicted = cache.get([{ address: "1.1.1.1", family: 4 }]);
+    const close = vi.spyOn(evicted, "close").mockResolvedValue(undefined);
+
+    cache.get([{ address: "2.2.2.2", family: 4 }]);
+
+    expect(close).toHaveBeenCalledOnce();
+    expect(cache.size).toBe(1);
+  });
+
   it("closes cached dispatchers and clears the cache", async () => {
     const cache = createPinnedDispatcherCache();
     const dispatcher = cache.get([{ address: "1.1.1.1", family: 4 }]);
