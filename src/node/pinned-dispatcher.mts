@@ -2,7 +2,7 @@ import { Agent } from "undici";
 import type { LookupFunction } from "node:net";
 import type { ResolvedSafeAddress } from "../core/index.mjs";
 
-type NonEmptyResolvedSafeAddresses = [ResolvedSafeAddress, ...ResolvedSafeAddress[]];
+export type NonEmptyResolvedSafeAddresses = [ResolvedSafeAddress, ...ResolvedSafeAddress[]];
 
 export interface PinnedDispatcherOptions {
   connections?: number;
@@ -67,7 +67,8 @@ export function createPinnedDispatcherCache(
 
     get(resolvedAddresses) {
       const addresses = toNonEmptyAddresses(resolvedAddresses);
-      const cacheKey = getPinnedDispatcherCacheKey(addresses);
+      const canonicalAddresses = sortPinnedDispatcherAddresses(addresses);
+      const cacheKey = getPinnedDispatcherCacheKey(canonicalAddresses);
       const cachedDispatcher = cache.get(cacheKey);
       if (cachedDispatcher) {
         cache.delete(cacheKey);
@@ -77,8 +78,8 @@ export function createPinnedDispatcherCache(
 
       const dispatcher =
         connections === undefined
-          ? createPinnedDispatcher(addresses)
-          : createPinnedDispatcher(addresses, { connections });
+          ? createPinnedDispatcher(canonicalAddresses)
+          : createPinnedDispatcher(canonicalAddresses, { connections });
       evictPinnedDispatcherIfNeeded(cache, maxSize);
       cache.set(cacheKey, dispatcher);
       return dispatcher;
@@ -106,18 +107,23 @@ function toNonEmptyAddresses(
   return [firstAddress, ...additionalAddresses];
 }
 
+function sortPinnedDispatcherAddresses(
+  resolvedAddresses: NonEmptyResolvedSafeAddresses,
+): NonEmptyResolvedSafeAddresses {
+  return toNonEmptyAddresses([...resolvedAddresses].sort(comparePinnedResolvedAddress));
+}
+
+function comparePinnedResolvedAddress(a: ResolvedSafeAddress, b: ResolvedSafeAddress): number {
+  return a.family - b.family || a.address.localeCompare(b.address);
+}
+
 function getPinnedDispatcherCacheKey(resolvedAddresses: readonly ResolvedSafeAddress[]): string {
-  return resolvedAddresses
-    .slice()
-    .sort((a, b) => a.family - b.family || a.address.localeCompare(b.address))
-    .map(({ address, family }) => `${family}:${address}`)
-    .join("|");
+  return resolvedAddresses.map(({ address, family }) => `${family}:${address}`).join("|");
 }
 
 function evictPinnedDispatcherIfNeeded(cache: Map<string, Agent>, maxSize: number): void {
   while (cache.size >= maxSize) {
-    const oldestCacheKey = cache.keys().next().value;
-    if (oldestCacheKey === undefined) return;
+    const oldestCacheKey = cache.keys().next().value!;
     const oldestDispatcher = cache.get(oldestCacheKey);
     cache.delete(oldestCacheKey);
     oldestDispatcher?.close().catch(() => {

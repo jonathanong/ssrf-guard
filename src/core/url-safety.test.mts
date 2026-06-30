@@ -98,6 +98,8 @@ describe("isPublicHostname", () => {
   });
 
   it("rejects invalid hostname and IP-looking syntax", () => {
+    expect(isPublicHostname("")).toBe(false);
+    expect(isPublicHostname(`${"a".repeat(250)}.com`)).toBe(false);
     expect(isPublicHostname("-example.com")).toBe(false);
     expect(isPublicHostname("example..com")).toBe(false);
     expect(isPublicHostname("foo:bar")).toBe(false);
@@ -106,14 +108,18 @@ describe("isPublicHostname", () => {
   });
 
   it("uses custom blocked hostname policies", () => {
+    const customPolicy = {
+      exact: ["metadata.google.internal"],
+      suffixes: [],
+    };
+
     expect(
       isPublicHostname("metadata.google.internal", {
-        blockedHostnames: {
-          exact: ["metadata.google.internal"],
-          suffixes: [],
-        },
+        blockedHostnames: customPolicy,
       }),
     ).toBe(false);
+    expect(isPublicHostname("foo.localhost", { blockedHostnames: customPolicy })).toBe(false);
+    expect(isPublicHostname("service.local", { blockedHostnames: customPolicy })).toBe(false);
     expect(
       isPublicHostname("foo.internal", {
         blockedHostnames: {

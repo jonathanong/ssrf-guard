@@ -43,6 +43,13 @@ describe("createPinnedDispatcher", () => {
     const dispatcher = createPinnedDispatcher([{ address: "93.184.216.34", family: 4 }]);
     expect(dispatcher).toBeInstanceOf(Agent);
   });
+
+  it("accepts dispatcher connection options", () => {
+    const dispatcher = createPinnedDispatcher([{ address: "93.184.216.34", family: 4 }], {
+      connections: 2,
+    });
+    expect(dispatcher).toBeInstanceOf(Agent);
+  });
 });
 
 describe("createPinnedDispatcherCache", () => {
@@ -59,6 +66,28 @@ describe("createPinnedDispatcherCache", () => {
 
     expect(second).toBe(first);
     expect(cache.size).toBe(1);
+  });
+
+  it("canonicalizes same-family address ordering for cache reuse", () => {
+    const cache = createPinnedDispatcherCache();
+    const first = cache.get([
+      { address: "93.184.216.35", family: 4 },
+      { address: "93.184.216.34", family: 4 },
+    ]);
+    const second = cache.get([
+      { address: "93.184.216.34", family: 4 },
+      { address: "93.184.216.35", family: 4 },
+    ]);
+
+    expect(second).toBe(first);
+    expect(cache.size).toBe(1);
+  });
+
+  it("creates cached dispatchers with connection options", () => {
+    const cache = createPinnedDispatcherCache({ connections: 2 });
+    const dispatcher = cache.get([{ address: "1.1.1.1", family: 4 }]);
+
+    expect(dispatcher).toBeInstanceOf(Agent);
   });
 
   it("evicts and closes the least-recently-used dispatcher", () => {
@@ -88,6 +117,15 @@ describe("createPinnedDispatcherCache", () => {
     expect(cache.size).toBe(1);
   });
 
+  it("ignores dispatcher close failures during eviction", async () => {
+    const cache = createPinnedDispatcherCache({ maxSize: 1 });
+    const evicted = cache.get([{ address: "1.1.1.1", family: 4 }]);
+    vi.spyOn(evicted, "close").mockRejectedValue(new Error("already closed"));
+
+    expect(() => cache.get([{ address: "2.2.2.2", family: 4 }])).not.toThrow();
+    await Promise.resolve();
+  });
+
   it("closes cached dispatchers and clears the cache", async () => {
     const cache = createPinnedDispatcherCache();
     const dispatcher = cache.get([{ address: "1.1.1.1", family: 4 }]);
@@ -96,6 +134,15 @@ describe("createPinnedDispatcherCache", () => {
     await cache.close();
 
     expect(close).toHaveBeenCalledOnce();
+    expect(cache.size).toBe(0);
+  });
+
+  it("ignores dispatcher close failures during cache shutdown", async () => {
+    const cache = createPinnedDispatcherCache();
+    const dispatcher = cache.get([{ address: "1.1.1.1", family: 4 }]);
+    vi.spyOn(dispatcher, "close").mockRejectedValue(new Error("already closed"));
+
+    await expect(cache.close()).resolves.toBeUndefined();
     expect(cache.size).toBe(0);
   });
 

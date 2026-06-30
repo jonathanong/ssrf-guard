@@ -72,7 +72,10 @@ export function isBlockedHostname(hostname: string, policy: BlockedHostnamePolic
 
 export function isPublicHostname(hostname: string, options?: PublicHostnameOptions): boolean {
   const normalizedHostname = normalizeUrlHostname(hostname);
-  const policy = options?.blockedHostnames ?? LOCALHOST_BLOCKED_HOSTNAME_POLICY;
+  const policy =
+    options?.blockedHostnames === undefined
+      ? LOCALHOST_BLOCKED_HOSTNAME_POLICY
+      : mergeBlockedHostnamePolicies(LOCALHOST_BLOCKED_HOSTNAME_POLICY, options.blockedHostnames);
   if (isBlockedHostname(normalizedHostname, policy)) return false;
   if (isPrivateIp(normalizedHostname)) return false;
   if (
@@ -83,6 +86,23 @@ export function isPublicHostname(hostname: string, options?: PublicHostnameOptio
     return false;
   }
   return isValidHostname(normalizedHostname);
+}
+
+function mergeBlockedHostnamePolicies(
+  ...policies: readonly BlockedHostnamePolicy[]
+): BlockedHostnamePolicy {
+  const exact = new Set<string>();
+  const suffixes = new Set<string>();
+
+  for (const policy of policies) {
+    for (const hostname of policy.exact) exact.add(hostname);
+    for (const suffix of policy.suffixes) suffixes.add(suffix);
+  }
+
+  return {
+    exact: [...exact],
+    suffixes: [...suffixes],
+  };
 }
 
 export function validateResolvedAddresses<T extends ResolvedAddressLike>(

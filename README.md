@@ -163,7 +163,7 @@ interface SafeFetchOptions extends Omit<RequestInit, "signal"> {
 }
 ```
 
-#### `createPinnedDispatcher(resolvedAddresses: [ResolvedSafeAddress, ...]): Agent`
+#### `createPinnedDispatcher(resolvedAddresses: NonEmptyResolvedSafeAddresses): Agent`
 
 Creates an `undici` `Agent` whose `lookup` callback is hardwired to the provided addresses, preventing any further DNS resolution.
 
