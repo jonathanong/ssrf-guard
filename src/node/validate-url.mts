@@ -1,6 +1,6 @@
 import dns from "node:dns";
 import net from "node:net";
-import type { LookupAddress } from "node:dns";
+import type { LookupAddress, LookupAllOptions } from "node:dns";
 import {
   isPrivateIp,
   isBlockedHostname,
@@ -21,6 +21,7 @@ export interface ValidateUrlOptions {
 }
 
 const EMPTY_POLICY: BlockedHostnamePolicy = { exact: [], suffixes: [] };
+type LookupAllOptionsWithSignal = LookupAllOptions & { signal?: AbortSignal };
 
 export async function validateUrl(
   rawUrl: string,
@@ -70,7 +71,9 @@ function lookupHostname(
     return Promise.reject(createAbortErrorForSignal(hostname, signal));
   }
 
-  const lookupPromise = dns.promises.lookup(hostname, { all: true }) as Promise<LookupAddress[]>;
+  const lookupOptions: LookupAllOptionsWithSignal =
+    signal === undefined ? { all: true } : { all: true, signal };
+  const lookupPromise = dns.promises.lookup(hostname, lookupOptions) as Promise<LookupAddress[]>;
 
   if (signal === undefined && timeoutMs === undefined) return lookupPromise;
 

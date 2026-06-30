@@ -16,8 +16,9 @@ export function isPrivateIp(ip: string): boolean {
 }
 
 function normalizeIpForParsing(ip: string): string {
+  let normalizedIp = ip;
   if (ip.startsWith("[") && ip.endsWith("]")) {
-    return ip.slice(1, -1);
+    normalizedIp = ip.slice(1, -1);
   }
-  return ip;
+  return normalizedIp.replace(/%.*$/, "");
 }

@@ -137,6 +137,7 @@ describe("validateUrl (mocked DNS)", () => {
     });
     expect(vi.mocked(dns.promises.lookup)).toHaveBeenCalledWith("abort-later.example.com", {
       all: true,
+      signal: controller.signal,
     });
   });
 
