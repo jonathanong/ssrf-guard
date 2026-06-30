@@ -36,6 +36,16 @@ describe("safeFetch (mocked)", () => {
     expect(result.status).toBe(200);
   });
 
+  it("passes AbortSignal through to URL validation", async () => {
+    const res = makeResponse(200);
+    const signal = AbortSignal.timeout(1000);
+    vi.mocked(undiciFetch).mockResolvedValue(res as never);
+
+    await safeFetch("https://example.com/", { signal });
+
+    expect(vi.mocked(validateUrl)).toHaveBeenCalledWith("https://example.com/", { signal });
+  });
+
   it("follows a redirect to a final non-redirect response", async () => {
     const redirect = makeResponse(302, { location: "https://example.com/final" });
     const final = makeResponse(200);

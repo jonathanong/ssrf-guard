@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   normalizeUrlHostname,
   isBlockedHostname,
+  isPublicHostname,
+  LOCALHOST_BLOCKED_HOSTNAME_POLICY,
   validateResolvedAddresses,
   UnsafeResolvedAddressError,
   DNS_NULL_ROUTE_CODE,
@@ -58,6 +60,81 @@ describe("isBlockedHostname", () => {
   it("does not block non-matching hostnames", () => {
     expect(isBlockedHostname("example.com", POLICY)).toBe(false);
     expect(isBlockedHostname("notlocalhost", POLICY)).toBe(false);
+  });
+});
+
+describe("isPublicHostname", () => {
+  it("accepts public hostnames and public IP literals", () => {
+    expect(isPublicHostname("example.com")).toBe(true);
+    expect(isPublicHostname("news.example.com")).toBe(true);
+    expect(isPublicHostname("8.8.8.8")).toBe(true);
+    expect(isPublicHostname("2606:4700:4700::1111")).toBe(true);
+  });
+
+  it("normalizes case, brackets, and trailing dots", () => {
+    expect(isPublicHostname("Example.COM.")).toBe(true);
+    expect(isPublicHostname("[2606:4700:4700::1111]")).toBe(true);
+    expect(isPublicHostname("localhost.")).toBe(false);
+  });
+
+  it("rejects localhost, .localhost, .local, and single-label hostnames by default", () => {
+    expect(isPublicHostname("localhost")).toBe(false);
+    expect(isPublicHostname("foo.localhost")).toBe(false);
+    expect(isPublicHostname("service.local")).toBe(false);
+    expect(isPublicHostname("intranet")).toBe(false);
+  });
+
+  it("can allow valid single-label hostnames", () => {
+    expect(isPublicHostname("intranet", { allowSingleLabel: true })).toBe(true);
+  });
+
+  it("rejects private and special-use IP literals", () => {
+    expect(isPublicHostname("10.0.0.1")).toBe(false);
+    expect(isPublicHostname("127.0.0.1")).toBe(false);
+    expect(isPublicHostname("169.254.169.254")).toBe(false);
+    expect(isPublicHostname("::1")).toBe(false);
+    expect(isPublicHostname("fe80::1")).toBe(false);
+    expect(isPublicHostname("::ffff:127.0.0.1")).toBe(false);
+  });
+
+  it("rejects invalid hostname and IP-looking syntax", () => {
+    expect(isPublicHostname("")).toBe(false);
+    expect(isPublicHostname(`${"a".repeat(250)}.com`)).toBe(false);
+    expect(isPublicHostname("-example.com")).toBe(false);
+    expect(isPublicHostname("example..com")).toBe(false);
+    expect(isPublicHostname("foo:bar")).toBe(false);
+    expect(isPublicHostname("999.999.999.999")).toBe(false);
+    expect(isPublicHostname("8.8")).toBe(false);
+  });
+
+  it("uses custom blocked hostname policies", () => {
+    const customPolicy = {
+      exact: ["metadata.google.internal"],
+      suffixes: [],
+    };
+
+    expect(
+      isPublicHostname("metadata.google.internal", {
+        blockedHostnames: customPolicy,
+      }),
+    ).toBe(false);
+    expect(isPublicHostname("foo.localhost", { blockedHostnames: customPolicy })).toBe(false);
+    expect(isPublicHostname("service.local", { blockedHostnames: customPolicy })).toBe(false);
+    expect(
+      isPublicHostname("foo.internal", {
+        blockedHostnames: {
+          exact: [],
+          suffixes: [".internal"],
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it("exports the local hostname policy for validateUrl callers", () => {
+    expect(LOCALHOST_BLOCKED_HOSTNAME_POLICY).toEqual({
+      exact: ["localhost"],
+      suffixes: [".localhost", ".local"],
+    });
   });
 });
 
