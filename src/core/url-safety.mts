@@ -17,6 +17,16 @@ export interface BlockedHostnamePolicy {
   suffixes: readonly string[];
 }
 
+export const LOCALHOST_BLOCKED_HOSTNAME_POLICY = {
+  exact: ["localhost"],
+  suffixes: [".localhost", ".local"],
+} as const satisfies BlockedHostnamePolicy;
+
+export interface PublicHostnameOptions {
+  blockedHostnames?: BlockedHostnamePolicy;
+  allowSingleLabel?: boolean;
+}
+
 export function sanitizeUrl(url: string): string {
   try {
     const u = new URL(url);
@@ -60,6 +70,21 @@ export function isBlockedHostname(hostname: string, policy: BlockedHostnamePolic
   return policy.suffixes.some((suffix) => hostname.endsWith(suffix.toLowerCase()));
 }
 
+export function isPublicHostname(hostname: string, options?: PublicHostnameOptions): boolean {
+  const normalizedHostname = normalizeUrlHostname(hostname);
+  const policy = options?.blockedHostnames ?? LOCALHOST_BLOCKED_HOSTNAME_POLICY;
+  if (isBlockedHostname(normalizedHostname, policy)) return false;
+  if (isPrivateIp(normalizedHostname)) return false;
+  if (
+    options?.allowSingleLabel !== true &&
+    !normalizedHostname.includes(".") &&
+    !normalizedHostname.includes(":")
+  ) {
+    return false;
+  }
+  return isValidHostname(normalizedHostname);
+}
+
 export function validateResolvedAddresses<T extends ResolvedAddressLike>(
   rawUrl: string,
   hostname: string,
@@ -77,6 +102,37 @@ export function validateResolvedAddresses<T extends ResolvedAddressLike>(
 
 function isNullRouteAddress(address: string): boolean {
   return address === "::" || address === "0.0.0.0";
+}
+
+function isValidHostname(hostname: string): boolean {
+  if (hostname.length === 0 || hostname.length > 253) return false;
+  if (hostname.includes(":")) return isValidIpv6Hostname(hostname);
+  const labels = hostname.split(".");
+  if (labels.every((label) => /^\d+$/.test(label))) return isValidCanonicalIpv4(labels);
+  return labels.every(isValidHostnameLabel);
+}
+
+function isValidCanonicalIpv4(labels: string[]): boolean {
+  return (
+    labels.length === 4 &&
+    labels.every((label) => {
+      const value = Number(label);
+      return Number.isInteger(value) && value >= 0 && value <= 255 && String(value) === label;
+    })
+  );
+}
+
+function isValidIpv6Hostname(hostname: string): boolean {
+  try {
+    new URL(`http://[${hostname}]/`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isValidHostnameLabel(label: string): boolean {
+  return label.length > 0 && label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label);
 }
 
 function createNullRouteDnsError(hostname: string, address?: string): Error {

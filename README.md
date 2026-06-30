@@ -19,13 +19,18 @@ Requires Node.js ≥ 24. The `ssrf-guard` entry point (`isPrivateIp`, `validateR
 ### Check whether an IP is private (core, works everywhere)
 
 ```ts
-import { isPrivateIp } from "ssrf-guard";
+import { isPrivateIp, isPublicHostname } from "ssrf-guard";
 
 isPrivateIp("127.0.0.1"); // true
 isPrivateIp("10.0.0.1"); // true
 isPrivateIp("::ffff:10.0.0.1"); // true  (IPv4-mapped IPv6)
 isPrivateIp("0x7f000001"); // true  (hex form of 127.0.0.1)
 isPrivateIp("8.8.8.8"); // false
+
+isPublicHostname("example.com"); // true
+isPublicHostname("localhost"); // false
+isPublicHostname("foo.localhost"); // false
+isPublicHostname("10.0.0.1"); // false
 ```
 
 ### Validate a URL and get pinned addresses (Node.js)
@@ -77,6 +82,19 @@ Lowercases, strips trailing dots, and unwraps brackets from IPv6 hostnames as ex
 
 Returns `true` if `hostname` matches an exact entry or a suffix in `policy`.
 
+#### `isPublicHostname(hostname: string, options?: PublicHostnameOptions): boolean`
+
+Returns `true` for DNS-free public host checks. It normalizes case/trailing dots/IPv6 brackets, rejects private or special-use IP literals, applies a blocked-hostname policy, and rejects single-label hostnames unless `allowSingleLabel: true` is set.
+
+By default it uses `LOCALHOST_BLOCKED_HOSTNAME_POLICY`, which blocks `localhost`, `*.localhost`, and `*.local`.
+
+```ts
+interface PublicHostnameOptions {
+  blockedHostnames?: BlockedHostnamePolicy;
+  allowSingleLabel?: boolean;
+}
+```
+
 #### `validateResolvedAddresses<T>(rawUrl, hostname, addresses): T[]`
 
 Filters out null-route addresses (`0.0.0.0`, `::`), throws `UnsafeResolvedAddressError` for private IPs, and throws with `code: DNS_NULL_ROUTE_CODE` when no usable addresses remain.
@@ -124,6 +142,8 @@ Validates a URL and returns the resolved addresses:
 ```ts
 interface ValidateUrlOptions {
   blockedHostnames?: BlockedHostnamePolicy;
+  timeoutMs?: number;
+  signal?: AbortSignal;
 }
 ```
 
@@ -146,6 +166,16 @@ interface SafeFetchOptions extends Omit<RequestInit, "signal"> {
 #### `createPinnedDispatcher(resolvedAddresses: [ResolvedSafeAddress, ...]): Agent`
 
 Creates an `undici` `Agent` whose `lookup` callback is hardwired to the provided addresses, preventing any further DNS resolution.
+
+#### `createPinnedDispatcherCache(options?): PinnedDispatcherCache`
+
+Creates a small LRU cache for pinned `undici` dispatchers. This is useful for crawlers that validate DNS once per request but want to reuse sockets for repeated requests to the same validated address set.
+
+```ts
+const cache = createPinnedDispatcherCache({ maxSize: 100, connections: 5 });
+const dispatcher = cache.get(resolvedAddresses);
+await cache.close();
+```
 
 #### `UnsafeUrlError`
 

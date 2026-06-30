@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { validateUrl } from "./validate-url.mjs";
 import { UnsafeUrlError } from "./errors.mjs";
 import { DNS_NULL_ROUTE_CODE } from "../core/index.mjs";
@@ -17,6 +17,10 @@ const { default: dns } = await import("node:dns");
 describe("validateUrl (mocked DNS)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("throws UnsafeUrlError when DNS resolves to private IP", async () => {
@@ -45,5 +49,46 @@ describe("validateUrl (mocked DNS)", () => {
     ] as never);
     const addresses = await validateUrl("https://example.com/");
     expect(addresses).toEqual([{ address: "93.184.216.34", family: 4 }]);
+  });
+
+  it("throws AbortError when DNS lookup exceeds timeoutMs", async () => {
+    vi.useFakeTimers();
+    vi.mocked(dns.promises.lookup).mockReturnValue(new Promise(() => {}) as never);
+
+    const validation = validateUrl("https://slow.example.com/", { timeoutMs: 25 });
+    const expectation = expect(validation).rejects.toMatchObject({
+      name: "AbortError",
+      message: "DNS lookup for slow.example.com timed out after 25ms",
+    });
+    await vi.advanceTimersByTimeAsync(25);
+
+    await expectation;
+  });
+
+  it("throws AbortError when signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      validateUrl("https://aborted.example.com/", { signal: controller.signal }),
+    ).rejects.toMatchObject({
+      name: "AbortError",
+      message: "DNS lookup for aborted.example.com aborted",
+    });
+  });
+
+  it("throws AbortError when signal aborts during DNS lookup", async () => {
+    vi.mocked(dns.promises.lookup).mockReturnValue(new Promise(() => {}) as never);
+    const controller = new AbortController();
+
+    const validation = validateUrl("https://abort-later.example.com/", {
+      signal: controller.signal,
+    });
+    controller.abort();
+
+    await expect(validation).rejects.toMatchObject({
+      name: "AbortError",
+      message: "DNS lookup for abort-later.example.com aborted",
+    });
   });
 });

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { createPinnedLookup, createPinnedDispatcher } from "./pinned-dispatcher.mjs";
+import {
+  createPinnedLookup,
+  createPinnedDispatcher,
+  createPinnedDispatcherCache,
+} from "./pinned-dispatcher.mjs";
 import { Agent } from "undici";
 
 describe("createPinnedLookup", () => {
@@ -38,5 +42,55 @@ describe("createPinnedDispatcher", () => {
   it("returns an undici Agent", () => {
     const dispatcher = createPinnedDispatcher([{ address: "93.184.216.34", family: 4 }]);
     expect(dispatcher).toBeInstanceOf(Agent);
+  });
+});
+
+describe("createPinnedDispatcherCache", () => {
+  it("returns the same dispatcher for equivalent address sets", () => {
+    const cache = createPinnedDispatcherCache();
+    const first = cache.get([
+      { address: "2606:2800:21f:cb07:6820:80da:af6b:8b2c", family: 6 },
+      { address: "93.184.216.34", family: 4 },
+    ]);
+    const second = cache.get([
+      { address: "93.184.216.34", family: 4 },
+      { address: "2606:2800:21f:cb07:6820:80da:af6b:8b2c", family: 6 },
+    ]);
+
+    expect(second).toBe(first);
+    expect(cache.size).toBe(1);
+  });
+
+  it("evicts and closes the least-recently-used dispatcher", () => {
+    const cache = createPinnedDispatcherCache({ maxSize: 2 });
+    const oldest = cache.get([{ address: "1.1.1.1", family: 4 }]);
+    const retained = cache.get([{ address: "2.2.2.2", family: 4 }]);
+    const oldestClose = vi.spyOn(oldest, "close").mockResolvedValue(undefined);
+    const retainedClose = vi.spyOn(retained, "close").mockResolvedValue(undefined);
+
+    expect(cache.get([{ address: "1.1.1.1", family: 4 }])).toBe(oldest);
+    cache.get([{ address: "3.3.3.3", family: 4 }]);
+
+    expect(oldestClose).not.toHaveBeenCalled();
+    expect(retainedClose).toHaveBeenCalledOnce();
+    expect(cache.get([{ address: "2.2.2.2", family: 4 }])).not.toBe(retained);
+    expect(cache.size).toBe(2);
+  });
+
+  it("closes cached dispatchers and clears the cache", async () => {
+    const cache = createPinnedDispatcherCache();
+    const dispatcher = cache.get([{ address: "1.1.1.1", family: 4 }]);
+    const close = vi.spyOn(dispatcher, "close").mockResolvedValue(undefined);
+
+    await cache.close();
+
+    expect(close).toHaveBeenCalledOnce();
+    expect(cache.size).toBe(0);
+  });
+
+  it("throws for empty address lists and invalid cache sizes", () => {
+    expect(() => createPinnedDispatcherCache({ maxSize: 0 })).toThrow(RangeError);
+    const cache = createPinnedDispatcherCache();
+    expect(() => cache.get([])).toThrow(RangeError);
   });
 });

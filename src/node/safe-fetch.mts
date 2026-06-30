@@ -9,6 +9,7 @@ import { validateUrl } from "./validate-url.mjs";
 import { createPinnedDispatcher } from "./pinned-dispatcher.mjs";
 import { UnsafeUrlError } from "./errors.mjs";
 import type { BlockedHostnamePolicy, ResolvedSafeAddress } from "../core/index.mjs";
+import type { ValidateUrlOptions } from "./validate-url.mjs";
 
 export interface SafeFetchOptions extends Omit<RequestInit, "signal"> {
   blockedHostnames?: BlockedHostnamePolicy;
@@ -74,7 +75,9 @@ export async function safeFetch(
       throw new UnsafeUrlError(currentUrl.href, "URL protocol is not allowed");
     }
 
-    const validateOptions = blockedHostnames !== undefined ? { blockedHostnames } : undefined;
+    const validateOptions: ValidateUrlOptions = {};
+    if (blockedHostnames !== undefined) validateOptions.blockedHostnames = blockedHostnames;
+    if (signal !== undefined) validateOptions.signal = signal;
     const resolvedAddresses: ResolvedSafeAddress[] = await validateUrl(
       currentUrl.href,
       validateOptions,
