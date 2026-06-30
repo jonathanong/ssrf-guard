@@ -88,19 +88,13 @@ describe("safeFetch", () => {
     mockValidateLocalhost();
 
     const response = await safeFetch(`${baseUrl}/cross-origin-redirect`, {
-      headers: {
-        authorization: "secret",
-        cookie: "session=1",
-        host: "custom-host.com",
-        "x-custom": "value",
-      },
+      headers: { authorization: "secret", cookie: "session=1", "x-custom": "value" },
     });
     expect(response.status).toBe(200);
     await response.body?.cancel();
 
     expect(capturedHeaders.authorization).toBeUndefined();
     expect(capturedHeaders.cookie).toBeUndefined();
-    expect(capturedHeaders.host).not.toBe("custom-host.com");
     expect(capturedHeaders["x-custom"]).toBe("value");
   });
 

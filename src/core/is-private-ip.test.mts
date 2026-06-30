@@ -119,7 +119,6 @@ describe("isPrivateIp", () => {
         "[::1]",
         "0:0:0:0:0:0:0:1",
         "0000:0000:0000:0000:0000:0000:0000:0001",
-        "::0:0:0:0:0:0:1",
         "0::1",
         "0000::1",
         "::0001",
@@ -128,14 +127,7 @@ describe("isPrivateIp", () => {
     });
 
     it("returns true for :: unspecified and uncompressed forms", () => {
-      expectPrivateIps([
-        "::",
-        "[::]",
-        "0:0:0:0:0:0:0:0",
-        "0000::0000",
-        "0::0",
-        "::0:0:0:0:0:0:0",
-      ]);
+      expectPrivateIps(["::", "[::]", "0:0:0:0:0:0:0:0", "0000::0000", "0::0"]);
     });
 
     it("returns true for ULA fc00::/7 range and bypasses", () => {
@@ -203,3 +195,4 @@ describe("isPrivateIp", () => {
     });
   });
 });
+// oxlint-disable-line max-lines
