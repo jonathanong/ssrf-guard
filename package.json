@@ -29,13 +29,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "ipaddr.js": "^2.4.0",
     "undici": "^8.5.0"
   },
   "devDependencies": {
-    "@types/node": "^25.9.4",
+    "@types/node": "^24.13.2",
     "@vitest/coverage-v8": "^4.1.9",
-    "oxfmt": "^0.55.0",
-    "oxlint": "^1.70.0",
+    "oxfmt": "^0.57.0",
+    "oxlint": "^1.72.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   },

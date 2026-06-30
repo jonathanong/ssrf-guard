@@ -50,11 +50,18 @@ function closeDispatcher(dispatcher: Dispatcher | undefined): void {
 function getRedirectUrl(response: UndiciResponse, currentUrl: string): URL {
   const location = response.headers.get("location");
   if (!location) throw new UnsafeUrlError(currentUrl, "redirect response missing Location header");
-  try {
-    return new URL(location, currentUrl);
-  } catch {
+  const redirectUrl = URL.parse(location, currentUrl);
+  if (redirectUrl === null) {
     throw new UnsafeUrlError(currentUrl, "invalid redirect URL");
   }
+  return redirectUrl;
+}
+
+function parseInitialUrl(initialUrl: string | URL): URL {
+  if (initialUrl instanceof URL) return initialUrl;
+  const url = URL.parse(initialUrl);
+  if (url === null) throw new UnsafeUrlError(initialUrl, "invalid URL");
+  return url;
 }
 
 export async function safeFetch(
@@ -68,7 +75,7 @@ export async function safeFetch(
     ...fetchInit
   } = options ?? {};
   let currentFetchInit = fetchInit;
-  let currentUrl = new URL(initialUrl);
+  let currentUrl = parseInitialUrl(initialUrl);
 
   for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
     if (currentUrl.protocol !== "http:" && currentUrl.protocol !== "https:") {

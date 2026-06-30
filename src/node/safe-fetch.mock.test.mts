@@ -36,6 +36,21 @@ describe("safeFetch (mocked)", () => {
     expect(result.status).toBe(200);
   });
 
+  it("accepts URL objects", async () => {
+    const res = makeResponse(200);
+    vi.mocked(undiciFetch).mockResolvedValue(res as never);
+    const result = await safeFetch(new URL("https://example.com/"));
+    expect(result.status).toBe(200);
+  });
+
+  it("throws UnsafeUrlError for invalid initial URLs", async () => {
+    await expect(safeFetch("not a url")).rejects.toMatchObject({
+      reason: "invalid URL",
+    });
+    expect(vi.mocked(validateUrl)).not.toHaveBeenCalled();
+    expect(vi.mocked(undiciFetch)).not.toHaveBeenCalled();
+  });
+
   it("passes AbortSignal through to URL validation", async () => {
     const res = makeResponse(200);
     const signal = AbortSignal.timeout(1000);
