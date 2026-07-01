@@ -29,10 +29,8 @@ export async function validateUrl(
 ): Promise<ResolvedSafeAddress[]> {
   const policy = options?.blockedHostnames ?? EMPTY_POLICY;
 
-  let url: URL;
-  try {
-    url = new URL(rawUrl);
-  } catch {
+  const url = URL.parse(rawUrl);
+  if (url === null) {
     throw new UnsafeUrlError(rawUrl, "invalid URL");
   }
 

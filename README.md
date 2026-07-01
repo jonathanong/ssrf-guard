@@ -72,7 +72,7 @@ const response = await safeFetch("https://example.com/image.png", {
 
 #### `isPrivateIp(ip: string): boolean`
 
-Returns `true` if `ip` is a private, loopback, link-local, or unspecified address. Handles all RFC-legal IPv4 forms (dotted decimal, octal components, hex components, integer), IPv6, IPv4-mapped IPv6 (`::ffff:`), and ULA/link-local IPv6 ranges.
+Returns `true` if `ip` is a private, loopback, link-local, unspecified, multicast, reserved, or other special-use address. Handles all RFC-legal IPv4 forms (dotted decimal, octal components, hex components, integer), IPv6, IPv4-mapped IPv6 (`::ffff:`), and special-use IPv6 ranges such as ULA, link-local, documentation, discard, NAT64, 6to4, and Teredo.
 
 #### `normalizeUrlHostname(hostname: string): string`
 

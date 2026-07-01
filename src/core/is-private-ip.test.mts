@@ -145,6 +145,19 @@ describe("isPrivateIp", () => {
       expectPrivateIps(["ff02::1", "ff00::", "ffff::ffff"]);
     });
 
+    it("returns true for additional special-use IPv6 ranges", () => {
+      expectPrivateIps([
+        "100::1", // discard
+        "64:ff9b::1", // NAT64
+        "64:ff9b:1::1", // local-use NAT64
+        "2001::1", // Teredo
+        "2001:2::1", // benchmarking
+        "2001:10::1", // deprecated ORCHID
+        "2001:db8::1", // documentation
+        "2002::1", // 6to4
+      ]);
+    });
+
     it("returns false for public IPv6 addresses", () => {
       expectPublicIps(["2606:4700:4700::1111%eth0", "[2001:4860:4860::8888%eth0]"]);
       expectPublicIps(["2606:4700:4700::1111", "2001:4860:4860::8888"]);

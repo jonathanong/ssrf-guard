@@ -95,6 +95,7 @@ describe("isPublicHostname", () => {
     expect(isPublicHostname("::1")).toBe(false);
     expect(isPublicHostname("fe80::1")).toBe(false);
     expect(isPublicHostname("::ffff:127.0.0.1")).toBe(false);
+    expect(isPublicHostname("2001:db8::1")).toBe(false);
   });
 
   it("rejects invalid hostname and IP-looking syntax", () => {
