@@ -30,15 +30,15 @@
   },
   "dependencies": {
     "ipaddr.js": "^2.4.0",
-    "undici": "^8.5.0"
+    "undici": "^8.7.0"
   },
   "devDependencies": {
-    "@types/node": "^24.13.2",
-    "@vitest/coverage-v8": "^4.1.9",
-    "oxfmt": "0.56.0",
-    "oxlint": "1.71.0",
+    "@types/node": "^24.13.3",
+    "@vitest/coverage-v8": "^4.1.10",
+    "oxfmt": "0.58.0",
+    "oxlint": "1.73.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "overrides": {
     "nanoid": "3.3.14"
