@@ -123,7 +123,7 @@ describe("createPinnedDispatcherCache", () => {
     vi.spyOn(evicted, "close").mockRejectedValue(new Error("already closed"));
 
     expect(() => cache.get([{ address: "2.2.2.2", family: 4 }])).not.toThrow();
-    await Promise.resolve();
+    await new Promise<void>((resolve) => setImmediate(resolve));
   });
 
   it("closes cached dispatchers and clears the cache", async () => {
@@ -144,6 +144,33 @@ describe("createPinnedDispatcherCache", () => {
 
     await expect(cache.close()).resolves.toBeUndefined();
     expect(cache.size).toBe(0);
+  });
+
+  it("becomes terminal as soon as close begins and closes dispatchers only once", async () => {
+    const cache = createPinnedDispatcherCache();
+    const dispatcher = cache.get([{ address: "1.1.1.1", family: 4 }]);
+    let resolveClose: () => void = () => {};
+    const close = vi.spyOn(dispatcher, "close").mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveClose = resolve;
+        }),
+    );
+
+    const firstClose = cache.close();
+    const secondClose = cache.close();
+
+    expect(secondClose).toBe(firstClose);
+    expect(cache.size).toBe(0);
+    expect(() => cache.get([{ address: "2.2.2.2", family: 4 }])).toThrow(
+      "Pinned dispatcher cache is closed",
+    );
+    expect(close).toHaveBeenCalledOnce();
+
+    resolveClose();
+    await expect(firstClose).resolves.toBeUndefined();
+    await expect(cache.close()).resolves.toBeUndefined();
+    expect(close).toHaveBeenCalledOnce();
   });
 
   it("throws for empty address lists and invalid cache sizes", () => {

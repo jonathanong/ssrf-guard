@@ -6,6 +6,11 @@ export type NonEmptyResolvedSafeAddresses = [ResolvedSafeAddress, ...ResolvedSaf
 
 export interface PinnedDispatcherOptions {
   connections?: number;
+  headersTimeout?: number;
+  bodyTimeout?: number;
+  keepAliveTimeout?: number;
+  keepAliveMaxTimeout?: number;
+  connect?: { timeout?: number };
 }
 
 export interface PinnedDispatcherCacheOptions extends PinnedDispatcherOptions {
@@ -40,11 +45,22 @@ export function createPinnedDispatcher(
   resolvedAddresses: NonEmptyResolvedSafeAddresses,
   options?: PinnedDispatcherOptions,
 ): Agent {
-  const agentOptions =
-    options?.connections === undefined ? {} : { connections: options.connections };
+  const {
+    connections,
+    headersTimeout,
+    bodyTimeout,
+    keepAliveTimeout,
+    keepAliveMaxTimeout,
+    connect,
+  } = options ?? {};
   return new Agent({
-    ...agentOptions,
+    ...(connections === undefined ? {} : { connections }),
+    ...(headersTimeout === undefined ? {} : { headersTimeout }),
+    ...(bodyTimeout === undefined ? {} : { bodyTimeout }),
+    ...(keepAliveTimeout === undefined ? {} : { keepAliveTimeout }),
+    ...(keepAliveMaxTimeout === undefined ? {} : { keepAliveMaxTimeout }),
     connect: {
+      ...(connect?.timeout === undefined ? {} : { timeout: connect.timeout }),
       lookup: createPinnedLookup(resolvedAddresses),
     },
   });
@@ -53,12 +69,30 @@ export function createPinnedDispatcher(
 export function createPinnedDispatcherCache(
   options?: PinnedDispatcherCacheOptions,
 ): PinnedDispatcherCache {
-  const { maxSize = 100, connections } = options ?? {};
+  const { maxSize = 100, ...dispatcherOptions } = options ?? {};
   if (!Number.isInteger(maxSize) || maxSize < 1) {
     throw new RangeError("maxSize must be a positive integer");
   }
 
   const cache = new Map<string, Agent>();
+  const inFlightClosePromises = new Set<Promise<void>>();
+  let closePromise: Promise<void> | undefined;
+  let closing = false;
+
+  const closeDispatcherBestEffort = (dispatcher: Agent): Promise<void> => {
+    let dispatcherClosePromise: Promise<void>;
+    try {
+      dispatcherClosePromise = dispatcher.close();
+    } catch {
+      dispatcherClosePromise = Promise.resolve();
+    }
+    const trackedClosePromise = dispatcherClosePromise.catch(() => {
+      // Closing is best-effort so shutdown/eviction is idempotent.
+    });
+    inFlightClosePromises.add(trackedClosePromise);
+    void trackedClosePromise.finally(() => inFlightClosePromises.delete(trackedClosePromise));
+    return trackedClosePromise;
+  };
 
   return {
     get size() {
@@ -66,6 +100,9 @@ export function createPinnedDispatcherCache(
     },
 
     get(resolvedAddresses) {
+      if (closing) {
+        throw new Error("Pinned dispatcher cache is closed");
+      }
       const addresses = toNonEmptyAddresses(resolvedAddresses);
       const canonicalAddresses = sortPinnedDispatcherAddresses(addresses);
       const cacheKey = getPinnedDispatcherCacheKey(canonicalAddresses);
@@ -76,25 +113,21 @@ export function createPinnedDispatcherCache(
         return cachedDispatcher;
       }
 
-      const dispatcher =
-        connections === undefined
-          ? createPinnedDispatcher(canonicalAddresses)
-          : createPinnedDispatcher(canonicalAddresses, { connections });
-      evictPinnedDispatcherIfNeeded(cache, maxSize);
+      const dispatcher = createPinnedDispatcher(canonicalAddresses, dispatcherOptions);
+      evictPinnedDispatcherIfNeeded(cache, maxSize, closeDispatcherBestEffort);
       cache.set(cacheKey, dispatcher);
       return dispatcher;
     },
 
-    async close() {
+    close() {
+      if (closePromise !== undefined) return closePromise;
+
+      closing = true;
       const dispatchers = Array.from(new Set(cache.values()));
       cache.clear();
-      await Promise.all(
-        dispatchers.map((dispatcher) =>
-          dispatcher.close().catch(() => {
-            // Closing is best-effort so shutdown/eviction is idempotent.
-          }),
-        ),
-      );
+      dispatchers.forEach(closeDispatcherBestEffort);
+      closePromise = Promise.all(inFlightClosePromises).then(() => undefined);
+      return closePromise;
     },
   };
 }
@@ -121,13 +154,15 @@ function getPinnedDispatcherCacheKey(resolvedAddresses: readonly ResolvedSafeAdd
   return resolvedAddresses.map(({ address, family }) => `${family}:${address}`).join("|");
 }
 
-function evictPinnedDispatcherIfNeeded(cache: Map<string, Agent>, maxSize: number): void {
+function evictPinnedDispatcherIfNeeded(
+  cache: Map<string, Agent>,
+  maxSize: number,
+  closeDispatcher: (dispatcher: Agent) => Promise<void>,
+): void {
   while (cache.size >= maxSize) {
     const oldestCacheKey = cache.keys().next().value!;
-    const oldestDispatcher = cache.get(oldestCacheKey);
+    const oldestDispatcher = cache.get(oldestCacheKey)!;
     cache.delete(oldestCacheKey);
-    oldestDispatcher?.close().catch(() => {
-      // Eviction should not fail because a dispatcher is already closed or unhealthy.
-    });
+    closeDispatcher(oldestDispatcher);
   }
 }

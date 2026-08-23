@@ -40,7 +40,7 @@ import { validateUrl } from "ssrf-guard/node";
 
 const addresses = await validateUrl("https://example.com/", {
   blockedHostnames: {
-    exact: ["localhost", "metadata.google.internal"],
+    exact: ["metadata.google.internal"],
     suffixes: [".local", ".internal"],
   },
 });
@@ -65,6 +65,8 @@ const response = await safeFetch("https://example.com/image.png", {
 ```
 
 `safeFetch` resolves DNS once, validates the result, pins the addresses to the socket via an `undici` `Agent`, and follows redirects — re-validating each hop.
+Both APIs always block `localhost`, localhost subdomains, and `.local` hostnames; a supplied
+`blockedHostnames` policy adds to that baseline rather than replacing it.
 
 ## API reference
 
@@ -81,6 +83,10 @@ Lowercases, strips trailing dots, and unwraps brackets from IPv6 hostnames as ex
 #### `isBlockedHostname(hostname: string, policy: BlockedHostnamePolicy): boolean`
 
 Returns `true` if `hostname` matches an exact entry or a suffix in `policy`.
+
+#### `mergeBlockedHostnamePolicies(...policies: BlockedHostnamePolicy[]): BlockedHostnamePolicy`
+
+Returns the union of exact and suffix hostname entries from the supplied policies.
 
 #### `isPublicHostname(hostname: string, options?: PublicHostnameOptions): boolean`
 
@@ -134,18 +140,21 @@ interface ResolvedSafeAddress {
 Validates a URL and returns the resolved addresses:
 
 1. Parses the URL — throws `UnsafeUrlError` for invalid URLs.
-2. Rejects non-`http:`/`https:` schemes.
-3. Checks against `blockedHostnames` policy.
+2. Rejects protocols outside `allowedProtocols` (both `http:` and `https:` by default).
+3. Checks against the localhost baseline plus the optional `blockedHostnames` policy.
 4. Rejects literal private IP addresses without DNS lookup.
 5. Resolves DNS and validates all returned addresses.
 
 ```ts
 interface ValidateUrlOptions {
   blockedHostnames?: BlockedHostnamePolicy;
+  allowedProtocols?: readonly ("http:" | "https:")[];
   timeoutMs?: number;
   signal?: AbortSignal;
 }
 ```
+
+`AllowedProtocol` is the exported union type `"http:" | "https:"` used by both option objects.
 
 #### `safeFetch(initialUrl: string | URL, options?: SafeFetchOptions): Promise<Response>`
 
@@ -158,24 +167,41 @@ Fetches a URL safely:
 ```ts
 interface SafeFetchOptions extends Omit<RequestInit, "signal"> {
   blockedHostnames?: BlockedHostnamePolicy;
+  allowedProtocols?: readonly ("http:" | "https:")[];
   maxRedirects?: number;
   signal?: AbortSignal;
 }
 ```
 
-#### `createPinnedDispatcher(resolvedAddresses: NonEmptyResolvedSafeAddresses): Agent`
+#### `createPinnedDispatcher(resolvedAddresses: NonEmptyResolvedSafeAddresses, options?: PinnedDispatcherOptions): Agent`
 
 Creates an `undici` `Agent` whose `lookup` callback is hardwired to the provided addresses, preventing any further DNS resolution.
+
+`PinnedDispatcherOptions` accepts `connections`, `headersTimeout`, `bodyTimeout`,
+`keepAliveTimeout`, `keepAliveMaxTimeout`, and `connect: { timeout?: number }`, which are passed to
+Undici while the dispatcher keeps its pinned DNS lookup. `PinnedDispatcherCacheOptions` adds
+`maxSize`.
 
 #### `createPinnedDispatcherCache(options?): PinnedDispatcherCache`
 
 Creates a small LRU cache for pinned `undici` dispatchers. This is useful for crawlers that validate DNS once per request but want to reuse sockets for repeated requests to the same validated address set.
 
 ```ts
-const cache = createPinnedDispatcherCache({ maxSize: 100, connections: 5 });
+const cache = createPinnedDispatcherCache({
+  maxSize: 100,
+  connections: 5,
+  headersTimeout: 10_000,
+  bodyTimeout: 30_000,
+  keepAliveTimeout: 5_000,
+  keepAliveMaxTimeout: 60_000,
+  connect: { timeout: 5_000 },
+});
 const dispatcher = cache.get(resolvedAddresses);
 await cache.close();
 ```
+
+After `close()` begins, the cache is terminal: `get()` throws and repeated `close()` calls share the
+same best-effort shutdown.
 
 #### `UnsafeUrlError`
 

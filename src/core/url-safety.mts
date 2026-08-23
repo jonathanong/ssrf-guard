@@ -88,7 +88,7 @@ export function isPublicHostname(hostname: string, options?: PublicHostnameOptio
   return isValidHostname(normalizedHostname);
 }
 
-function mergeBlockedHostnamePolicies(
+export function mergeBlockedHostnamePolicies(
   ...policies: readonly BlockedHostnamePolicy[]
 ): BlockedHostnamePolicy {
   const exact = new Set<string>();
