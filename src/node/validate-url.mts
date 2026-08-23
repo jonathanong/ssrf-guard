@@ -4,6 +4,8 @@ import type { LookupAddress, LookupAllOptions } from "node:dns";
 import {
   isPrivateIp,
   isBlockedHostname,
+  LOCALHOST_BLOCKED_HOSTNAME_POLICY,
+  mergeBlockedHostnamePolicies,
   normalizeUrlHostname,
   UnsafeResolvedAddressError,
   validateResolvedAddresses,
@@ -14,28 +16,39 @@ import { UnsafeUrlError } from "./errors.mjs";
 
 export type { BlockedHostnamePolicy, ResolvedSafeAddress };
 
+export type AllowedProtocol = "http:" | "https:";
+
 export interface ValidateUrlOptions {
   blockedHostnames?: BlockedHostnamePolicy;
+  allowedProtocols?: readonly AllowedProtocol[];
   timeoutMs?: number;
   signal?: AbortSignal;
 }
 
-const EMPTY_POLICY: BlockedHostnamePolicy = { exact: [], suffixes: [] };
+const DEFAULT_ALLOWED_PROTOCOLS: readonly AllowedProtocol[] = ["http:", "https:"];
+const HTTP_PROTOCOLS = new Set<AllowedProtocol>(DEFAULT_ALLOWED_PROTOCOLS);
 type LookupAllOptionsWithSignal = LookupAllOptions & { signal?: AbortSignal };
 
 export async function validateUrl(
   rawUrl: string,
   options?: ValidateUrlOptions,
 ): Promise<ResolvedSafeAddress[]> {
-  const policy = options?.blockedHostnames ?? EMPTY_POLICY;
+  const policy = mergeBlockedHostnamePolicies(
+    LOCALHOST_BLOCKED_HOSTNAME_POLICY,
+    options?.blockedHostnames ?? { exact: [], suffixes: [] },
+  );
 
   const url = URL.parse(rawUrl);
   if (url === null) {
     throw new UnsafeUrlError(rawUrl, "invalid URL");
   }
 
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new UnsafeUrlError(rawUrl, `scheme not allowed: ${url.protocol}`);
+  const allowedProtocols = options?.allowedProtocols ?? DEFAULT_ALLOWED_PROTOCOLS;
+  if (
+    !HTTP_PROTOCOLS.has(url.protocol as AllowedProtocol) ||
+    !allowedProtocols.includes(url.protocol as AllowedProtocol)
+  ) {
+    throw new UnsafeUrlError(rawUrl, `protocol not allowed: ${url.protocol}`);
   }
 
   const hostname = normalizeUrlHostname(url.hostname);

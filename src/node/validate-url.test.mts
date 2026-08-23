@@ -49,12 +49,9 @@ describe("validateUrl", () => {
     ).rejects.toThrow(UnsafeUrlError);
   });
 
-  it("does not block hostname due to policy when no policy is set", async () => {
-    // With no blockedHostnames policy the hostname-block check is skipped.
-    // localhost still resolves to a private IP so validateUrl throws, but the
-    // reason must NOT be "hostname not allowed" — it must be the DNS/IP check.
+  it("blocks localhost by default before DNS resolution", async () => {
     const error = await validateUrl("http://localhost/").catch((e: unknown) => e);
     expect(error).toBeInstanceOf(UnsafeUrlError);
-    expect((error as UnsafeUrlError).reason).not.toContain("hostname not allowed");
+    expect((error as UnsafeUrlError).reason).toBe("hostname not allowed: localhost");
   });
 });

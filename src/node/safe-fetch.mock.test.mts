@@ -86,6 +86,37 @@ describe("safeFetch (mocked)", () => {
     expect(vi.mocked(validateUrl)).toHaveBeenCalledWith("https://example.com/", { signal });
   });
 
+  it("passes configured allowed protocols through to URL validation", async () => {
+    const res = makeResponse(200);
+    vi.mocked(undiciFetch).mockResolvedValue(res as never);
+
+    await safeFetch("https://example.com/", { allowedProtocols: ["https:"] });
+
+    expect(vi.mocked(validateUrl)).toHaveBeenCalledWith("https://example.com/", {
+      allowedProtocols: ["https:"],
+    });
+  });
+
+  it("rejects a disallowed initial protocol before validation or fetch", async () => {
+    await expect(
+      safeFetch("https://example.com/", { allowedProtocols: ["http:"] }),
+    ).rejects.toMatchObject({ reason: "protocol not allowed: https:" });
+
+    expect(vi.mocked(validateUrl)).not.toHaveBeenCalled();
+    expect(vi.mocked(undiciFetch)).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-HTTP protocols when JavaScript callers bypass types", async () => {
+    await expect(
+      safeFetch("ftp://example.com/", {
+        allowedProtocols: ["ftp:"] as unknown as readonly ("http:" | "https:")[],
+      }),
+    ).rejects.toMatchObject({ reason: "protocol not allowed: ftp:" });
+
+    expect(vi.mocked(validateUrl)).not.toHaveBeenCalled();
+    expect(vi.mocked(undiciFetch)).not.toHaveBeenCalled();
+  });
+
   it("follows a redirect to a final non-redirect response", async () => {
     const redirect = makeResponse(302, { location: "https://example.com/final" });
     const final = makeResponse(200);
@@ -95,6 +126,18 @@ describe("safeFetch (mocked)", () => {
     const result = await safeFetch("https://example.com/");
     expect(result.status).toBe(200);
     expect(vi.mocked(validateUrl)).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects a protocol downgrade redirect before validation or fetch", async () => {
+    const redirect = makeResponse(302, { location: "http://example.com/final" });
+    vi.mocked(undiciFetch).mockResolvedValue(redirect as never);
+
+    await expect(
+      safeFetch("https://example.com/", { allowedProtocols: ["https:"] }),
+    ).rejects.toMatchObject({ reason: "protocol not allowed: http:" });
+
+    expect(vi.mocked(validateUrl)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(undiciFetch)).toHaveBeenCalledTimes(1);
   });
 
   it("throws UnsafeUrlError when redirect location header is missing", async () => {

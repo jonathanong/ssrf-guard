@@ -9,15 +9,18 @@ import { validateUrl } from "./validate-url.mjs";
 import { createPinnedDispatcher } from "./pinned-dispatcher.mjs";
 import { UnsafeUrlError } from "./errors.mjs";
 import type { BlockedHostnamePolicy, ResolvedSafeAddress } from "../core/index.mjs";
-import type { ValidateUrlOptions } from "./validate-url.mjs";
+import type { AllowedProtocol, ValidateUrlOptions } from "./validate-url.mjs";
 
 export interface SafeFetchOptions extends Omit<RequestInit, "signal"> {
   blockedHostnames?: BlockedHostnamePolicy;
+  allowedProtocols?: readonly AllowedProtocol[];
   maxRedirects?: number;
   signal?: AbortSignal;
 }
 
 const DEFAULT_MAX_REDIRECTS = 10;
+const DEFAULT_ALLOWED_PROTOCOLS: readonly AllowedProtocol[] = ["http:", "https:"];
+const HTTP_PROTOCOLS = new Set<AllowedProtocol>(DEFAULT_ALLOWED_PROTOCOLS);
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 // Security: headers stripped on cross-origin redirects
@@ -70,6 +73,7 @@ export async function safeFetch(
 ): Promise<UndiciResponse> {
   const {
     blockedHostnames,
+    allowedProtocols = DEFAULT_ALLOWED_PROTOCOLS,
     maxRedirects = DEFAULT_MAX_REDIRECTS,
     signal,
     ...fetchInit
@@ -78,12 +82,18 @@ export async function safeFetch(
   let currentUrl = parseInitialUrl(initialUrl);
 
   for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
-    if (currentUrl.protocol !== "http:" && currentUrl.protocol !== "https:") {
-      throw new UnsafeUrlError(currentUrl.href, "URL protocol is not allowed");
+    if (
+      !HTTP_PROTOCOLS.has(currentUrl.protocol as AllowedProtocol) ||
+      !allowedProtocols.includes(currentUrl.protocol as AllowedProtocol)
+    ) {
+      throw new UnsafeUrlError(currentUrl.href, `protocol not allowed: ${currentUrl.protocol}`);
     }
 
     const validateOptions: ValidateUrlOptions = {};
     if (blockedHostnames !== undefined) validateOptions.blockedHostnames = blockedHostnames;
+    if (allowedProtocols !== DEFAULT_ALLOWED_PROTOCOLS) {
+      validateOptions.allowedProtocols = allowedProtocols;
+    }
     if (signal !== undefined) validateOptions.signal = signal;
     const resolvedAddresses: ResolvedSafeAddress[] = await validateUrl(
       currentUrl.href,
