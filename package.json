@@ -34,11 +34,11 @@
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
-    "@vitest/coverage-v8": "^4.1.10",
-    "oxfmt": "0.62.0",
-    "oxlint": "1.77.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "oxfmt": "0.64.0",
+    "oxlint": "1.79.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "nanoid": "3.3.14"
