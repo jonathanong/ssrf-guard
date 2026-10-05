@@ -33,10 +33,10 @@
     "undici": "^8.11.2"
   },
   "devDependencies": {
-    "@types/node": "^24.13.6",
+    "@types/node": "^24.19.1",
     "@vitest/coverage-v8": "^4.1.11",
-    "oxfmt": "0.70.0",
-    "oxlint": "1.85.0",
+    "oxfmt": "0.71.0",
+    "oxlint": "1.86.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
   },
