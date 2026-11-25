@@ -10,6 +10,7 @@ export interface PinnedDispatcherOptions {
   bodyTimeout?: number;
   keepAliveTimeout?: number;
   keepAliveMaxTimeout?: number;
+  maxResponseSize?: number;
   connect?: { timeout?: number };
 }
 
@@ -51,6 +52,7 @@ export function createPinnedDispatcher(
     bodyTimeout,
     keepAliveTimeout,
     keepAliveMaxTimeout,
+    maxResponseSize,
     connect,
   } = options ?? {};
   return new Agent({
@@ -59,6 +61,7 @@ export function createPinnedDispatcher(
     ...(bodyTimeout === undefined ? {} : { bodyTimeout }),
     ...(keepAliveTimeout === undefined ? {} : { keepAliveTimeout }),
     ...(keepAliveMaxTimeout === undefined ? {} : { keepAliveMaxTimeout }),
+    ...(maxResponseSize === undefined ? {} : { maxResponseSize }),
     connect: {
       ...(connect?.timeout === undefined ? {} : { timeout: connect.timeout }),
       lookup: createPinnedLookup(resolvedAddresses),

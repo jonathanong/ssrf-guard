@@ -162,6 +162,9 @@ Fetches a URL safely:
 
 - Validates and pins DNS addresses before each hop.
 - Follows redirects up to `maxRedirects` (default: 10), re-validating each.
+- Gives up with a `TimeoutError` if the final response headers have not arrived within `timeoutMs` (default: 30 000). The deadline covers DNS, connecting, and every redirect hop. It stops once `safeFetch` returns, so it does not cut off a long download; instead the body fails if no data arrives for `timeoutMs`.
+- Fails the body read once more than `maxResponseBytes` (default: 10 MiB) have arrived, with a `TypeError` whose `cause.code` is `UND_ERR_RES_EXCEEDED_MAX_SIZE`. The limit counts bytes on the wire: a compressed response can decode to more than this.
+- Pass `Infinity` for `timeoutMs` or `maxResponseBytes` to turn that limit off.
 - Passes remaining `RequestInit` options through to `undici`.
 
 ```ts
@@ -169,6 +172,8 @@ interface SafeFetchOptions extends Omit<RequestInit, "signal"> {
   blockedHostnames?: BlockedHostnamePolicy;
   allowedProtocols?: readonly ("http:" | "https:")[];
   maxRedirects?: number;
+  timeoutMs?: number;
+  maxResponseBytes?: number;
   signal?: AbortSignal;
 }
 ```
@@ -178,7 +183,7 @@ interface SafeFetchOptions extends Omit<RequestInit, "signal"> {
 Creates an `undici` `Agent` whose `lookup` callback is hardwired to the provided addresses, preventing any further DNS resolution.
 
 `PinnedDispatcherOptions` accepts `connections`, `headersTimeout`, `bodyTimeout`,
-`keepAliveTimeout`, `keepAliveMaxTimeout`, and `connect: { timeout?: number }`, which are passed to
+`keepAliveTimeout`, `keepAliveMaxTimeout`, `maxResponseSize`, and `connect: { timeout?: number }`, which are passed to
 Undici while the dispatcher keeps its pinned DNS lookup. `PinnedDispatcherCacheOptions` adds
 `maxSize`.
 
