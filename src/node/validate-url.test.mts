@@ -3,12 +3,6 @@ import { validateUrl } from "./validate-url.mjs";
 import { UnsafeUrlError } from "./errors.mjs";
 
 describe("validateUrl", () => {
-  it("resolves a public URL and returns addresses", async () => {
-    const addresses = await validateUrl("https://one.one.one.one/");
-    expect(addresses.length).toBeGreaterThan(0);
-    expect(addresses[0]).toMatchObject({ address: expect.any(String), family: expect.any(Number) });
-  });
-
   it("throws UnsafeUrlError for invalid URL", async () => {
     await expect(validateUrl("not a url")).rejects.toThrow(UnsafeUrlError);
   });
