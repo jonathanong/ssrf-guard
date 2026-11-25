@@ -3,21 +3,23 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 10
+      interval: daily
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
     groups:
-      all-deps:
-        patterns: ["*"]
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+      oxc:
+        patterns: ["oxlint", "oxfmt"]
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
     versioning-strategy: increase
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: daily
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
     groups:
-      all-actions:
-        patterns: ["*"]
+      actions:
+        patterns: ["actions/*"]
