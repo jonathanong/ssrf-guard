@@ -12,6 +12,7 @@
     "dist"
   ],
   "type": "module",
+  "packageManager": "pnpm@12.23.0",
   "exports": {
     ".": {
       "types": "./dist/core/index.d.mts",
