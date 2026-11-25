@@ -1,3 +1,5 @@
+import ipaddr from "ipaddr.js";
+
 import { isPrivateIp } from "./is-private-ip.mjs";
 
 export const DNS_NULL_ROUTE_CODE = "DNS_NULL_ROUTE";
@@ -45,8 +47,8 @@ export class UnsafeResolvedAddressError extends Error {
   readonly rawUrl: string;
   readonly address: string;
 
-  constructor(rawUrl: string, address: string) {
-    super(`DNS resolved to private IP: ${address}`);
+  constructor(rawUrl: string, address: string, message = `DNS resolved to private IP: ${address}`) {
+    super(message);
     this.rawUrl = sanitizeUrl(rawUrl);
     this.address = address;
   }
@@ -112,6 +114,15 @@ export function validateResolvedAddresses<T extends ResolvedAddressLike>(
 ): T[] {
   const usableAddresses = addresses.filter(({ address }) => !isNullRouteAddress(address));
   for (const { address } of usableAddresses) {
+    // isPrivateIp answers false for anything it cannot parse, so a resolver that
+    // returns something other than an IP address must be rejected here.
+    if (!ipaddr.isValid(address)) {
+      throw new UnsafeResolvedAddressError(
+        rawUrl,
+        address,
+        `DNS resolved to invalid IP: ${address}`,
+      );
+    }
     if (isPrivateIp(address)) throw new UnsafeResolvedAddressError(rawUrl, address);
   }
   if (usableAddresses.length === 0) {
