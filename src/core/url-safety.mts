@@ -128,7 +128,9 @@ function isValidHostname(hostname: string): boolean {
   if (hostname.length === 0 || hostname.length > 253) return false;
   if (hostname.includes(":")) return isValidIpv6Hostname(hostname);
   const labels = hostname.split(".");
-  if (labels.every((label) => /^\d+$/.test(label))) return isValidCanonicalIpv4(labels);
+  // The WHATWG URL parser reads any host whose last label is a number as IPv4
+  // (`0x.1` is 0.0.0.1, `1.2.3.0x4` is 1.2.3.4), so such a host is never a DNS name.
+  if (/^(?:\d+|0x[0-9a-f]*)$/.test(labels.at(-1)!)) return isValidCanonicalIpv4(labels);
   return labels.every(isValidHostnameLabel);
 }
 
