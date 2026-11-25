@@ -4,7 +4,7 @@ SSRF protection for Node.js and Cloudflare Workers.
 
 The key differentiator: **`validateUrl` returns the resolved IP addresses so you can pin them directly to the socket — eliminating the TOCTOU/DNS-rebind window that exists between a validation step and the actual fetch.** `safeFetch` does this automatically.
 
-Unlike [`request-filtering-agent`](https://github.com/nicolo-ribaudo/request-filtering-agent), `ssrf-guard` exposes the resolved addresses to the caller, letting you reuse them across retries or pass them to your own HTTP client.
+Unlike [`request-filtering-agent`](https://github.com/azu/request-filtering-agent), `ssrf-guard` exposes the resolved addresses to the caller, letting you reuse them across retries or pass them to your own HTTP client.
 
 ## Installation
 

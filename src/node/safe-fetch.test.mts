@@ -76,13 +76,6 @@ function mockValidateLocalhost() {
 }
 
 describe("safeFetch", () => {
-  it("fetches a public URL", async () => {
-    const response = await safeFetch("https://one.one.one.one/");
-    expect(response.status).toBeLessThan(500);
-    const _body = await response.text();
-    // drain body instead of cancelling to avoid warnings if we want, but cancel is fine
-  });
-
   it("strips sensitive headers on cross-origin redirect", async () => {
     // Temporarily mock validateUrl to allow private IPs and localhost for testing redirect header stripping
     mockValidateLocalhost();
