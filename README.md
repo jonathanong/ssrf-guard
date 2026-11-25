@@ -74,7 +74,7 @@ Both APIs always block `localhost`, localhost subdomains, and `.local` hostnames
 
 #### `isPrivateIp(ip: string): boolean`
 
-Returns `true` if `ip` is a private, loopback, link-local, unspecified, multicast, reserved, or other special-use address. Handles all RFC-legal IPv4 forms (dotted decimal, octal components, hex components, integer), IPv6, IPv4-mapped IPv6 (`::ffff:`), and special-use IPv6 ranges such as ULA, link-local, documentation, discard, NAT64, 6to4, and Teredo.
+Returns `true` if `ip` is a private, loopback, link-local, unspecified, multicast, reserved, or other special-use address. Handles all RFC-legal IPv4 forms (dotted decimal, octal components, hex components, integer), IPv6, IPv4-mapped IPv6 (`::ffff:`), the deprecated IPv4-compatible block (`::/96`, e.g. `::7f00:1`), and special-use IPv6 ranges such as ULA, link-local, documentation, discard, NAT64, 6to4, and Teredo.
 
 #### `normalizeUrlHostname(hostname: string): string`
 

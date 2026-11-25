@@ -25,6 +25,16 @@ describe("validateUrl", () => {
     await expect(validateUrl("https://127.0.0.1/")).rejects.toThrow(UnsafeUrlError);
   });
 
+  it.each(["http://[::127.0.0.1]/", "http://[::7f00:1]/", "http://[::a9fe:a9fe]/"])(
+    "rejects IPv4-compatible IPv6 literal %s before DNS",
+    async (url) => {
+      await expect(validateUrl(url)).rejects.toMatchObject({
+        name: "UnsafeUrlError",
+        reason: expect.stringContaining("IP address is private"),
+      });
+    },
+  );
+
   it("sanitizes credentials in UnsafeUrlError", async () => {
     const error = await validateUrl("https://admin:secretPass@127.0.0.1/").catch((e: unknown) => e);
     expect(error).toBeInstanceOf(UnsafeUrlError);
