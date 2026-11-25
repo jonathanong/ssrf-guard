@@ -8,6 +8,14 @@ import {
 import { validateUrl } from "./validate-url.mjs";
 import { createPinnedDispatcher } from "./pinned-dispatcher.mjs";
 import { UnsafeUrlError } from "./errors.mjs";
+import {
+  DEFAULT_MAX_RESPONSE_BYTES,
+  DEFAULT_TIMEOUT_MS,
+  checkFetchLimits,
+  dispatcherLimits,
+  startDeadline,
+  type FetchLimits,
+} from "./fetch-limits.mjs";
 import type { BlockedHostnamePolicy, ResolvedSafeAddress } from "../core/index.mjs";
 import type { AllowedProtocol, ValidateUrlOptions } from "./validate-url.mjs";
 
@@ -15,6 +23,8 @@ export interface SafeFetchOptions extends Omit<RequestInit, "signal"> {
   blockedHostnames?: BlockedHostnamePolicy;
   allowedProtocols?: readonly AllowedProtocol[];
   maxRedirects?: number;
+  timeoutMs?: number;
+  maxResponseBytes?: number;
   signal?: AbortSignal;
 }
 
@@ -72,12 +82,33 @@ export async function safeFetch(
   options?: SafeFetchOptions,
 ): Promise<UndiciResponse> {
   const {
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    maxResponseBytes = DEFAULT_MAX_RESPONSE_BYTES,
+    signal,
+    ...rest
+  } = options ?? {};
+  const limits = { timeoutMs, maxResponseBytes };
+  checkFetchLimits(limits);
+  const deadline = startDeadline(timeoutMs, signal);
+  try {
+    return await fetchFollowingRedirects(initialUrl, rest, limits, deadline.signal);
+  } finally {
+    deadline.clear();
+  }
+}
+
+async function fetchFollowingRedirects(
+  initialUrl: string | URL,
+  options: Omit<SafeFetchOptions, "timeoutMs" | "maxResponseBytes" | "signal">,
+  limits: FetchLimits,
+  signal: AbortSignal | undefined,
+): Promise<UndiciResponse> {
+  const {
     blockedHostnames,
     allowedProtocols = DEFAULT_ALLOWED_PROTOCOLS,
     maxRedirects = DEFAULT_MAX_REDIRECTS,
-    signal,
     ...fetchInit
-  } = options ?? {};
+  } = options;
   let currentFetchInit = fetchInit;
   let currentUrl = parseInitialUrl(initialUrl);
 
@@ -102,7 +133,7 @@ export async function safeFetch(
 
     // v8 ignore next 3 -- validateUrl never returns an empty array (throws DNS_NULL_ROUTE instead)
     const dispatcher = hasResolvedAddress(resolvedAddresses)
-      ? createPinnedDispatcher(resolvedAddresses)
+      ? createPinnedDispatcher(resolvedAddresses, dispatcherLimits(limits))
       : undefined;
 
     try {

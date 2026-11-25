@@ -61,7 +61,9 @@ describe("safeFetch (mocked)", () => {
     resolveValidation(PUBLIC_ADDRESSES);
 
     await expect(responsePromise).resolves.toBe(res);
-    expect(vi.mocked(validateUrl)).toHaveBeenCalledWith("https://example.com/original", {});
+    expect(vi.mocked(validateUrl)).toHaveBeenCalledWith("https://example.com/original", {
+      signal: expect.any(AbortSignal),
+    });
     expect(vi.mocked(undiciFetch)).toHaveBeenCalledWith(
       "https://example.com/original",
       expect.objectContaining({ redirect: "manual" }),
@@ -78,12 +80,15 @@ describe("safeFetch (mocked)", () => {
 
   it("passes AbortSignal through to URL validation", async () => {
     const res = makeResponse(200);
-    const signal = AbortSignal.timeout(1000);
+    const controller = new AbortController();
     vi.mocked(undiciFetch).mockResolvedValue(res as never);
 
-    await safeFetch("https://example.com/", { signal });
+    await safeFetch("https://example.com/", { signal: controller.signal });
 
-    expect(vi.mocked(validateUrl)).toHaveBeenCalledWith("https://example.com/", { signal });
+    const passedSignal = vi.mocked(validateUrl).mock.calls[0]?.[1]?.signal;
+    expect(passedSignal?.aborted).toBe(false);
+    controller.abort();
+    expect(passedSignal?.aborted).toBe(true);
   });
 
   it("passes configured allowed protocols through to URL validation", async () => {
@@ -94,6 +99,7 @@ describe("safeFetch (mocked)", () => {
 
     expect(vi.mocked(validateUrl)).toHaveBeenCalledWith("https://example.com/", {
       allowedProtocols: ["https:"],
+      signal: expect.any(AbortSignal),
     });
   });
 
