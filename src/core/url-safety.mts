@@ -27,18 +27,23 @@ export interface PublicHostnameOptions {
   allowSingleLabel?: boolean;
 }
 
+// Masks userinfo and drops the query and fragment, which often carry tokens or
+// signatures, so the URL is safe to put in an error message or a log.
 export function sanitizeUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    if (u.username || u.password) {
-      u.username = "***";
-      u.password = "***";
-      return u.href;
-    }
-    return url;
-  } catch {
-    return url.replace(/^((?:[a-z0-9+.-]+:)?(?:\/\/)?)([^\s/?#]+)@/i, "$1***:***@");
+  const u = URL.parse(url);
+  if (u === null) {
+    return url
+      .replace(/[?#].*$/s, "")
+      .replace(/^((?:[a-z0-9+.-]+:)?(?:\/\/)?)([^\s/?#]+)@/i, "$1***:***@");
   }
+  if (!u.username && !u.password && !/[?#]/.test(url)) return url;
+  if (u.username || u.password) {
+    u.username = "***";
+    u.password = "***";
+  }
+  u.search = "";
+  u.hash = "";
+  return u.href;
 }
 
 export class UnsafeResolvedAddressError extends Error {
