@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { safeFetch } from "./safe-fetch.mjs";
+import { validateUrl } from "./validate-url.mjs";
 
 // validateUrl rejects loopback, so it is mocked to return the local test server's address.
 // Everything else (pinned dispatcher, undici fetch, the limits) is real.
@@ -63,6 +64,13 @@ describe("safeFetch limits", () => {
   it("does not cut off a body that keeps arriving after timeoutMs", async () => {
     const response = await safeFetch(`${base}/trickle`, { timeoutMs: 200 });
     expect(await response.text()).toBe("xxxxxx");
+  });
+
+  it("passes no signal to validation when the timeout is off and the caller gave none", async () => {
+    vi.mocked(validateUrl).mockClear();
+    const response = await safeFetch(`${base}/big`, { timeoutMs: Infinity });
+    await response.arrayBuffer();
+    expect(vi.mocked(validateUrl)).toHaveBeenCalledWith(`${base}/big`, {});
   });
 
   it("rejects invalid limits before fetching", async () => {
