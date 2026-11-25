@@ -76,7 +76,7 @@ Both APIs always block `localhost`, localhost subdomains, and `.local` hostnames
 
 Returns `true` if `ip` is a private, loopback, link-local, unspecified, multicast, reserved, or other special-use address. Handles all RFC-legal IPv4 forms (dotted decimal, octal components, hex components, integer), IPv6, IPv4-mapped IPv6 (`::ffff:`), and special-use IPv6 ranges such as ULA, link-local, documentation, discard, NAT64, 6to4, and Teredo.
 
-`false` means only that `ip` is not a private address. A string that is not an IP address at all, such as `example.com` or `127.0.0.1.`, also returns `false`. To decide whether a host is safe to fetch, use `isPublicHostname`, `validateUrl`, or `safeFetch`.
+`false` means only that `ip` is not a private address. A string that is not an IP address at all, such as `example.com` or `127.0.0.1.`, also returns `false`. To fetch a URL safely, use `safeFetch`, or `validateUrl` and pin the addresses it returns. `isPublicHostname` is only a preliminary check: it does not resolve DNS, so a public-looking hostname can still point at a private address.
 
 #### `normalizeUrlHostname(hostname: string): string`
 
