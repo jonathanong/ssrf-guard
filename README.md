@@ -107,7 +107,7 @@ Filters out null-route addresses (`0.0.0.0`, `::`), throws `UnsafeResolvedAddres
 
 #### `UnsafeResolvedAddressError`
 
-Thrown by `validateResolvedAddresses`. Properties: `rawUrl: string`, `address: string`.
+Thrown by `validateResolvedAddresses`. Properties: `rawUrl: string`, `address: string`. `rawUrl` and the message carry the URL with userinfo masked and the query string and fragment removed.
 
 #### `DNS_NULL_ROUTE_CODE`
 
@@ -205,7 +205,7 @@ same best-effort shutdown.
 
 #### `UnsafeUrlError`
 
-Thrown by `validateUrl` and `safeFetch`. Properties: `rawUrl: string`, `reason: string`.
+Thrown by `validateUrl` and `safeFetch`. Properties: `rawUrl: string`, `reason: string`. `rawUrl` and the message carry the URL with userinfo masked and the query string and fragment removed.
 
 ## License
 
